@@ -1,0 +1,2425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DCS Kneeboard Generator</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;500;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
+
+    /* ═══════════════════════════════════════════════
+       VARIABLES & RESET
+    ═══════════════════════════════════════════════ */
+    :root {
+      --bg:        #0c0e13;
+      --bg2:       #13161f;
+      --bg3:       #1a1e2b;
+      --bg4:       #222840;
+      --border:    #252a3a;
+      --border2:   #323d58;
+      --accent:    #4a9eff;
+      --accent-bg: rgba(74,158,255,.08);
+      --green:     #3ddc84;
+      --green-bg:  rgba(61,220,132,.08);
+      --orange:    #ff9a3c;
+      --red:       #ff4d4d;
+      --text:      #b8c4da;
+      --text2:     #6a7a9a;
+      --text3:     #3a4460;
+      --white:     #dce6f5;
+      --mono:  'Share Tech Mono', monospace;
+      --sans:  'Barlow', sans-serif;
+      --cond:  'Barlow Condensed', sans-serif;
+
+      /* Dimensions A4 en pixels à 96 dpi */
+      --a4w: 794px;
+      --a4h: 1123px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; }
+
+    /* ═══════════════════════════════════════════════
+       LAYOUT PRINCIPAL
+    ═══════════════════════════════════════════════ */
+    .app   { display: flex; height: 100vh; }
+
+    /* Panneau gauche (formulaires) */
+    .left  {
+      width: 320px; min-width: 320px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* Panneau droit (aperçu) */
+    .right {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; background: #191b22;
+    }
+
+    /* ═══════════════════════════════════════════════
+       EN-TÊTE GAUCHE
+    ═══════════════════════════════════════════════ */
+    .l-hdr {
+      padding: 14px 16px 10px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .l-title { font-family: var(--cond); font-size: 17px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--white); }
+    .l-sub   { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+    /* ═══════════════════════════════════════════════
+       SCROLLZONE GAUCHE
+    ═══════════════════════════════════════════════ */
+    .l-body { flex: 1; overflow-y: auto; padding: 10px; }
+    .l-body::-webkit-scrollbar { width: 3px; }
+    .l-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    /* ═══════════════════════════════════════════════
+       ACCORDÉONS
+    ═══════════════════════════════════════════════ */
+    .acc {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 5px; margin-bottom: 8px; overflow: hidden;
+    }
+    .acc.locked { opacity: .35; pointer-events: none; }
+
+    .acc-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 11px; cursor: pointer; user-select: none;
+    }
+    .acc-hdr:hover { background: var(--bg4); }
+
+    .acc-left  { display: flex; align-items: center; gap: 7px; }
+    .acc-title { font-family: var(--cond); font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text); }
+    .acc-badge { font-family: var(--mono); font-size: 9px; padding: 1px 6px; border-radius: 3px; background: var(--bg4); color: var(--text2); }
+    .acc-badge.ok   { background: var(--green-bg); color: var(--green); }
+    .acc-badge.info { background: var(--accent-bg); color: var(--accent); }
+
+    .acc-arrow { font-size: 9px; color: var(--text3); transition: transform .18s; }
+    .acc.closed .acc-arrow  { transform: rotate(-90deg); }
+    .acc.closed .acc-body   { display: none; }
+
+    .acc-body { padding: 10px 11px; border-top: 1px solid var(--border); }
+
+    /* ═══════════════════════════════════════════════
+       FORMULAIRE
+    ═══════════════════════════════════════════════ */
+    .row    { display: grid; gap: 7px; margin-bottom: 7px; }
+    .row.c1 { grid-template-columns: 1fr; }
+    .row.c2 { grid-template-columns: 1fr 1fr; }
+    .row.c3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    .fld { display: flex; flex-direction: column; gap: 3px; }
+    .fld label {
+      font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--text2);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .atag {
+      font-size: 8px; padding: 0 4px; border-radius: 2px;
+      background: var(--green-bg); color: var(--green); font-family: var(--mono);
+    }
+
+    .fld input, .fld textarea, .fld select {
+      background: var(--bg); border: 1px solid var(--border2);
+      border-radius: 3px; color: var(--white); font-family: var(--sans);
+      font-size: 11.5px; padding: 4px 7px; transition: border-color .12s; width: 100%;
+    }
+    .fld input:focus, .fld textarea:focus { outline: none; border-color: var(--accent); }
+    .fld input[readonly] { color: var(--text2); border-color: var(--border); cursor: default; }
+    .fld textarea { resize: vertical; min-height: 48px; line-height: 1.5; }
+
+    /* ═══════════════════════════════════════════════
+       BOUTONS
+    ═══════════════════════════════════════════════ */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 13px; border-radius: 3px;
+      font-family: var(--cond); font-size: 11.5px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+      cursor: pointer; border: none; transition: all .12s;
+    }
+    .btn-pri { background: var(--accent); color: #000; }
+    .btn-pri:hover { background: #6ab4ff; }
+    .btn-pri:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-sec { background: transparent; color: var(--text); border: 1px solid var(--border2); }
+    .btn-sec:hover { background: var(--bg4); }
+    .btn-grn { background: var(--green-bg); color: var(--green); border: 1px solid rgba(61,220,132,.25); }
+    .btn-grn:hover { background: rgba(61,220,132,.14); }
+    .btn-red { background: rgba(255,77,77,.1); color: var(--red); border: 1px solid rgba(255,77,77,.25); }
+    .btn-red:hover { background: rgba(255,77,77,.18); }
+    .btn-xs { padding: 2px 7px; font-size: 10px; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* ═══════════════════════════════════════════════
+       ZONE UPLOAD
+    ═══════════════════════════════════════════════ */
+    .upzone {
+      border: 1px dashed var(--border2); border-radius: 5px;
+      padding: 18px 12px; text-align: center; cursor: pointer;
+      transition: all .15s; background: var(--bg);
+    }
+    .upzone:hover, .upzone.drag { border-color: var(--accent); background: rgba(74,158,255,.05); }
+    .upzone input { display: none; }
+    .upzone-ico { font-size: 22px; opacity: .4; margin-bottom: 5px; }
+    .upzone-ttl { font-family: var(--cond); font-size: 14px; font-weight: 700; color: var(--white); }
+    .upzone-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+    .file-ok {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; background: var(--green-bg);
+      border: 1px solid rgba(61,220,132,.2); border-radius: 4px;
+      font-size: 11.5px; color: var(--green);
+    }
+
+    /* ═══════════════════════════════════════════════
+       CARTES GROUPE
+    ═══════════════════════════════════════════════ */
+    .grd  { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .gcard {
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 7px 9px; cursor: pointer; transition: all .12s; background: var(--bg);
+    }
+    .gcard:hover { border-color: var(--border2); }
+    .gcard.on    { border-color: var(--accent); background: rgba(74,158,255,.07); }
+    .gcard.on .gc-cs { color: var(--accent); }
+    .gc-cs  { font-family: var(--cond); font-size: 13px; font-weight: 800; color: var(--white); }
+    .gc-s   { font-family: var(--mono); font-size: 10px; color: var(--text2); margin-top: 1px; }
+    .gc-tag { display: inline-block; font-size: 8.5px; padding: 1px 5px; border-radius: 2px; margin-top: 4px; font-weight: 700; font-family: var(--mono); }
+    .tpkg   { background: rgba(74,158,255,.12);  color: var(--accent); }
+    .tsup   { background: rgba(255,154,60,.12);  color: var(--orange); }
+
+    /* ═══════════════════════════════════════════════
+       LIGNES COMMS
+    ═══════════════════════════════════════════════ */
+    .comm-grid {
+      display: grid; grid-template-columns: 22px 70px 1fr 18px;
+      gap: 3px; align-items: center; margin-bottom: 3px;
+    }
+    .comm-num  { font-family: var(--mono); font-size: 10px; color: var(--text2); text-align: center; }
+    .comm-grid input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 2px;
+      color: var(--white); font-family: var(--mono); font-size: 10.5px; padding: 2px 5px;
+    }
+    .comm-del  { color: var(--text3); cursor: pointer; text-align: center; font-size: 13px; line-height: 1; }
+    .comm-del:hover { color: var(--red); }
+
+    /* ═══════════════════════════════════════════════
+       PIED GAUCHE / BARRE DE PROGRESSION
+    ═══════════════════════════════════════════════ */
+    .l-foot { flex-shrink: 0; border-top: 1px solid var(--border); }
+    .progress  { height: 2px; background: var(--border); }
+    .prog-fill { height: 100%; background: var(--accent); transition: width .3s; width: 0; }
+    .status    { padding: 5px 11px; font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+    /* ═══════════════════════════════════════════════
+       BARRE D'OUTILS DROITE
+    ═══════════════════════════════════════════════ */
+    .r-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 14px; background: var(--bg2);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .r-bar-title { font-family: var(--cond); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); }
+    .spacer { flex: 1; }
+    .hint-edit  { font-size: 10px; color: var(--text3); font-style: italic; font-family: var(--mono); }
+    .page-dots  { display: flex; gap: 3px; align-items: center; }
+    .pdot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--border2); cursor: pointer; transition: background .15s;
+    }
+    .pdot.on { background: var(--accent); }
+
+    /* ═══════════════════════════════════════════════
+       ZONE DE DÉFILEMENT APERÇU
+    ═══════════════════════════════════════════════ */
+    .r-scroll {
+      flex: 1; overflow: auto; padding: 24px;
+      background: #1c1e26;
+    }
+    .r-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .r-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    /* ─── Conteneur de toutes les paires de pages ─── */
+    .kb-pages { display: flex; flex-direction: column; gap: 28px; align-items: flex-start; }
+
+    /* ─── Paire de pages (côte-à-côte en édition) ─── */
+    .kb-wrap {
+      position: relative;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin-top: 20px;
+      /* Empêche le débordement horizontal du conteneur */
+      flex-shrink: 0;
+    }
+
+    /* Étiquette de paire */
+    .kb-plbl {
+      position: absolute;
+      top: -16px; left: 0;
+      font-family: var(--mono); font-size: 9px;
+      letter-spacing: .1em; text-transform: uppercase; color: var(--text3);
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════
+       PAGE KNEEBOARD (A4 strict)
+       Dimensions fixes en px pour correspondre exactement
+       à 210mm × 297mm @ 96 dpi (1px = 0.264mm)
+    ═══════════════════════════════════════════════ */
+    .kb-page {
+      width:  var(--a4w);   /* 794px = 210mm */
+      height: var(--a4h);   /* 1123px = 297mm */
+      min-height: var(--a4h);
+      max-height: var(--a4h);
+      background: #f4f1eb;
+      font-family: 'Barlow Condensed', sans-serif;
+      color: #111;
+      /* Overflow caché : garantit qu'aucun contenu ne dépasse la page */
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 6px 28px rgba(0,0,0,.55);
+      border-radius: 3px;
+      /* Le contenu interne se répartit selon la hauteur disponible */
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════
+       COMPOSANTS INTERNES DE LA PAGE
+    ═══════════════════════════════════════════════ */
+
+    /* En-tête principal (bleu marine) */
+    .kb-mhdr {
+      background: #0d1e3e; color: #fff;
+      padding: 5px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .kb-mhdr-t { font-size: 13px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .kb-mhdr-r { font-size: 10px; opacity: .8; }
+    .kb-img-btn {
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .kb-img-btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.6); }
+
+    /* Sous-en-tête de section (bleu intermédiaire) */
+    .kb-shdr {
+      background: #1a3560; color: #fff;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      padding: 2px 8px;
+      flex-shrink: 0;
+    }
+
+    /* Sous-en-tête secondaire (bleu plus clair) */
+    .kb-mhdr2 {
+      background: #253d6b; color: #fff;
+      font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+      padding: 2px 7px;
+      flex-shrink: 0;
+    }
+
+    /* Grilles de cellules */
+    .kb-grid2  { display: grid; grid-template-columns: 1fr 1fr; }
+    .kb-grid3  { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .kb-grid4  { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .kb-grid5  { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
+    .kb-grid12 { display: grid; grid-template-columns: repeat(12, 1fr); }
+
+    /* Cellule individuelle */
+    .kb-c {
+      border: .5px solid #c0bdb5;
+      padding: 2px 5px;
+      overflow: hidden;
+    }
+    .kb-cl {
+      display: block; font-size: 7px; color: #666;
+      text-transform: uppercase; letter-spacing: .04em;
+      margin-bottom: 1px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .kb-cv {
+      display: block; font-size: 11px; font-weight: 700;
+      color: #0d1e3e; line-height: 1.25;
+      min-height: 13px;
+      /* Empêche le texte de faire grossir la cellule */
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* Champs éditables dans la page */
+    .kb-cv[contenteditable] { cursor: text; border-radius: 1px; transition: background .1s, outline .1s; }
+    .kb-cv[contenteditable]:hover  { background: rgba(74,158,255,.14); outline: 1px dashed rgba(74,158,255,.4); }
+    .kb-cv[contenteditable]:focus  { background: rgba(74,158,255,.20); outline: 1.5px solid rgba(74,158,255,.7); white-space: normal; overflow: visible; }
+
+    /* ─── TABLEAUX ─── */
+    .kb-tbl {
+      width: 100%; border-collapse: collapse;
+      /* Hauteur fixée par le conteneur parent, jamais par le contenu */
+      table-layout: fixed;
+    }
+    .kb-tbl th {
+      background: #2a3f6f; color: #fff;
+      font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+      padding: 2px 4px; text-align: left; white-space: nowrap; overflow: hidden;
+    }
+    .kb-tbl td {
+      font-size: 9.5px; padding: 2px 4px;
+      border-bottom: .5px solid #ddd; color: #111;
+      vertical-align: middle; height: 17px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .kb-tbl tr:nth-child(even) td { background: #ece9e1; }
+
+    /* Cellules éditables dans les tableaux */
+    .kb-tbl td[contenteditable] { cursor: text; transition: background .1s; }
+    .kb-tbl td[contenteditable]:hover  { background: rgba(74,158,255,.13); }
+    .kb-tbl td[contenteditable]:focus  { background: rgba(74,158,255,.20); outline: 1px solid rgba(74,158,255,.6); white-space: normal; overflow: visible; }
+
+    /* Boutons +/- dans les tableaux */
+    .kb-tbl td.row-add {
+      background: rgba(61,220,132,.06); color: #3ddc84;
+      text-align: center; font-size: 13px; cursor: pointer; width: 16px; padding: 0;
+    }
+    .kb-tbl td.row-del {
+      background: rgba(255,77,77,.06); color: rgba(255,77,77,.5);
+      text-align: center; font-size: 13px; cursor: pointer; width: 14px; padding: 0;
+    }
+    .kb-tbl td.row-del:hover { color: #ff4d4d; background: rgba(255,77,77,.12); }
+    .kb-tbl td.row-add:hover { background: rgba(61,220,132,.14); }
+
+    /* Séparateur horizontal */
+    .kb-sep { height: .5px; background: #c0bdb5; flex-shrink: 0; }
+
+    /* Zone flex qui absorbe l'espace restant */
+    .kb-fill {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; min-height: 0;
+    }
+    .kb-fill > .kb-c { flex: 1; overflow: hidden; }
+
+    .kb-pair {
+      display: flex; flex-direction: column; gap: 4px;
+      min-height: 200px; height: 220px;
+      overflow: hidden;
+    }
+    .kb-pair > .kb-c {
+      display: flex; flex-direction: column;
+      flex: 0 1 auto; min-height: 60px; overflow: hidden;
+    }
+    .kb-pair > .kb-c .kb-cv {
+      flex: 1 1 auto; min-height: 0; overflow: auto;
+      white-space: normal;
+    }
+
+    /* Zone contenteditable libre (notes, croquis) */
+    .kb-free {
+      flex: 1; padding: 6px;
+      font-size: 10.5px; color: #0d1e3e;
+      overflow: hidden; border: .5px solid #c0bdb5;
+    }
+    .kb-free:focus { outline: 1.5px solid rgba(74,158,255,.6); }
+    .kb-free:empty::before { content: attr(data-placeholder); color: #aaa; font-style: italic; }
+
+    /* Wrapper pour un tableau avec scroll interne si dépassement */
+    .kb-tbl-wrap {
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════
+       IMPRESSION
+    ═══════════════════════════════════════════════ */
+    @media print {
+      @page { size: A4 portrait; margin: 0; }
+
+      body { background: #fff; overflow: auto; }
+      .app  { display: block; height: auto; }
+      .left, .r-bar { display: none !important; }
+
+      .right   { overflow: visible; }
+      .r-scroll { padding: 0; background: #fff; overflow: visible; }
+      .kb-pages { gap: 0; }
+
+      /* Chaque .kb-page = une page imprimée A4 */
+      .kb-wrap {
+        display: block;
+        margin: 0; padding: 0;
+      }
+      .kb-plbl { display: none; }
+      .kb-page {
+        box-shadow: none; border-radius: 0;
+        width: 210mm; height: 297mm;
+        max-height: 297mm; min-height: 297mm;
+        page-break-after: always; break-after: page;
+        page-break-inside: avoid; break-inside: avoid;
+        margin: 0;
+      }
+      .kb-page:last-child { page-break-after: avoid; break-after: avoid; }
+
+      /* Suppression des effets de survol à l'impression */
+      .kb-cv[contenteditable]:hover,
+      .kb-cv[contenteditable]:focus,
+      .kb-tbl td[contenteditable]:hover,
+      .kb-tbl td[contenteditable]:focus {
+        background: transparent !important; outline: none !important;
+      }
+
+      /* Masquer les boutons de modification */
+      .kb-tbl td.row-add,
+      .kb-tbl td.row-del,
+      .no-print { display: none !important; }
+
+      /* Masquer les inputs de datalist (afficher juste le texte) */
+      .af-input { border: none !important; outline: none !important; background: transparent !important; }
+    }
+  </style>
+
+  <!-- Bibliothèques (chargées depuis CDN fiables) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- ═══════════════════ PANNEAU GAUCHE ═══════════════════ -->
+  <div class="left">
+    <div class="l-hdr">
+      <div class="l-title">DCS Kneeboard</div>
+      <div class="l-sub">generator · v4 · mission card builder</div>
+    </div>
+
+    <div class="l-body">
+
+      <!-- SECTION : Chargement du fichier mission -->
+      <div class="acc" id="ac-miz">
+        <div class="acc-hdr" onclick="toggleAcc('ac-miz')">
+          <div class="acc-left">
+            <span class="acc-title">Mission .miz</span>
+            <span class="acc-badge" id="bdg-miz">en attente</span>
+          </div>
+          <span class="acc-arrow">▼</span>
+        </div>
+        <div class="acc-body">
+          <div class="upzone" id="upzone" onclick="document.getElementById('miz-inp').click()">
+            <input type="file" id="miz-inp" accept=".miz">
+            <div class="upzone-ico">⬆</div>
+            <div class="upzone-ttl">Glisser ou cliquer</div>
+            <div class="upzone-sub">Fichier .miz DCS</div>
+          </div>
+          <input type="file" id="img-inp" accept="image/*" style="display:none">
+          <div id="file-ok" class="file-ok" style="display:none">
+            <span>✓</span>
+            <span id="file-name" style="flex:1;font-size:11px"></span>
+            <button class="btn btn-sec btn-xs" onclick="resetApp()">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION : Package de vol -->
+      <div class="acc locked" id="ac-pkg">
+        <div class="acc-hdr" onclick="toggleAcc('ac-pkg')">
+          <div class="acc-left">
+            <span class="acc-title">Package</span>
+            <span class="acc-badge" id="bdg-pkg">—</span>
+          </div>
+          <span class="acc-arrow">▼</span>
+        </div>
+        <div class="acc-body">
+          <div class="row c1" style="margin-bottom:10px">
+            <div class="fld">
+              <label>Filtre Coalition</label>
+              <select id="sel-coalition" onchange="changeCoalition()">
+                <option value="blue"    selected>Bleue</option>
+                <option value="red">Rouge</option>
+                <option value="neutral">Neutre</option>
+                <option value="all">Toutes</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--text2);font-family:var(--mono);margin-bottom:6px">
+            EXÉCUTION — cliquer pour sélectionner
+          </div>
+          <div class="grd" id="pkg-grd"></div>
+          <div style="font-size:9px;color:var(--text2);font-family:var(--mono);margin:10px 0 6px">SUPPORTS</div>
+          <div class="grd" id="sup-grd"></div>
+          <div id="no-sup" style="font-size:11px;color:var(--text3);font-style:italic;padding:4px 0">
+            Aucun support détecté
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /l-body -->
+
+    <div class="l-foot">
+      <div class="progress"><div class="prog-fill" id="pfill"></div></div>
+      <div class="status" id="sbar">En attente d'un fichier .miz</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ PANNEAU DROIT ═══════════════════ -->
+  <div class="right">
+    <div class="r-bar">
+      <span class="r-bar-title">Aperçu kneeboard</span>
+      <span class="hint-edit">✏ Cliquer sur n'importe quel champ pour éditer</span>
+      <div class="spacer"></div>
+      <div class="page-dots" id="pdots"></div>
+      <div class="spacer"></div>
+      <button class="btn btn-sec btn-sm" onclick="selectImage()">🖼 Image</button>
+      <button class="btn btn-sec btn-sm" onclick="genImages()">🖼 JPG</button>
+      <button class="btn btn-sec btn-sm" onclick="genHTML()">🌐 HTML</button>
+      <button class="btn btn-sec btn-sm" onclick="window.print()">🖨 Imprimer</button>
+      <button class="btn btn-pri btn-sm" id="btn-pdf" disabled onclick="genPDF()">⬇ PDF</button>
+    </div>
+
+    <div class="r-scroll" id="rscroll">
+      <div class="kb-pages" id="kbpages">
+        <div style="text-align:center;padding:80px 20px;color:var(--text3);font-family:var(--mono);font-size:12px;letter-spacing:.1em">
+          CHARGEZ UN FICHIER .MIZ POUR COMMENCER
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Données terrains (fichier externe) -->
+<script src="dcs_airfields.js"></script>
+<!-- Ajout du parser externe -->
+<script src="miz_parser_copilot.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════
+   ÉTAT GLOBAL
+   ════════════════════════════════════════════════════════════════ */
+let miz = null;
+const selPkg = new Set();
+const selSup = new Set();
+let uhfComms = [];
+let vhfComms = [];
+let briefingImage = null;
+const groupMapImages = {};
+let currentImageTarget = 'briefing';
+
+/**
+ * Données du formulaire (valeurs saisies dans le panneau gauche).
+ * Toutes les valeurs sont des chaînes brutes (jamais du HTML).
+ */
+const fd = {
+  nom:'', irl:'', carte:'', ivl:'',
+  obj1:'', obj2:'', exec:'', pen:'',
+  sr:'', ss:'', wind:'', temp:'', qnh:'', vis:'', clouds:'', mnotes:'',
+  bull:'', cap:'', sam:'', air:'', roe:'', armt:''
+};
+
+/**
+ * Waypoints et loadout par groupe (clé = group.name).
+ * Données calculées à partir du .miz, modifiables en direct sur la page.
+ */
+const groupWPs     = {};
+const groupLoadout = {};
+/* Préférences d'unités par groupe (dist: 'nm'|'km', spalt: 'ktft'|'kmhm') */
+const groupUnitPrefs = {};
+
+/* ════════════════════════════════════════════════════════════════
+   UTILITAIRES DE SÉCURITÉ
+   Toutes les chaînes issues de sources externes (fichier .miz,
+   saisie utilisateur) doivent passer par ces fonctions avant
+   d'être insérées dans le DOM.
+   ════════════════════════════════════════════════════════════════ */
+
+/**
+ * Échappe les caractères HTML spéciaux d'une chaîne.
+ * À utiliser pour les attributs HTML et les insertions via innerHTML.
+ * @param {string} str
+ * @returns {string}
+ */
+function esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#39;');
+}
+
+/**
+ * Sanitise une chaîne pour utilisation dans un attribut d'événement
+ * inline (onblur, oninput…). Remplace les apostrophes pour éviter
+ * toute injection via les délimiteurs de chaîne JavaScript.
+ * @param {string} str
+ * @returns {string}
+ */
+function escAttr(str) {
+  return esc(str).replace(/'/g, '&#39;');
+}
+
+/**
+ * Crée un identifiant CSS sûr à partir d'un nom quelconque.
+ * @param {string} name
+ * @returns {string}
+ */
+function safeId(name) {
+  return String(name).replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ACCORDÉONS
+   ════════════════════════════════════════════════════════════════ */
+
+function toggleAcc(id) {
+  const el = document.getElementById(id);
+  if (el && !el.classList.contains('locked')) el.classList.toggle('closed');
+}
+
+function unlockAccs(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('locked');
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GESTION DU FICHIER .MIZ
+   ════════════════════════════════════════════════════════════════ */
+
+async function loadMiz(file) {
+  setStatus('Analyse du fichier mission...', 15);
+  if (!fd.nom) {
+    fd.nom = file.name.replace(/\.miz$/i, '');
+    const nomField = document.getElementById('f-nom');
+    if (nomField) nomField.value = fd.nom;
+  }
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const missionFile = zip.file('mission');
+    if (!missionFile) throw new Error('"mission" introuvable');
+    const content = await missionFile.async('string');
+
+    let theatre = '';
+    const theatreFile = zip.file('theatre');
+    if (theatreFile) theatre = (await theatreFile.async('string')).trim();
+
+    let dictionary = {};
+    const dictFile = zip.file('l10n/DEFAULT/dictionary');
+    if (dictFile) {
+        const dictStr = await dictFile.async('string');
+        const dictMatch = dictStr.match(/\["(.*?)"\]\s*=\s*"(.*?)"/g);
+        if (dictMatch) {
+            dictMatch.forEach(m => {
+                const mm = m.match(/\["(.*?)"\]\s*=\s*"(.*?)"/);
+                if (mm) dictionary[mm[1]] = mm[2].replace(/\\"/g, '"');
+            });
+        }
+    }
+
+// APPEL AU PARSER EXTERNE
+    miz = window.parseMiz(content, theatre, dictionary);
+    /* Vider les caches groupe pour éviter les données stales */
+    Object.keys(groupWPs).forEach(k => delete groupWPs[k]);
+    Object.keys(groupLoadout).forEach(k => delete groupLoadout[k]);
+    Object.keys(groupUnitPrefs).forEach(k => delete groupUnitPrefs[k]);
+
+    document.getElementById('file-ok').style.display = 'flex';
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('upzone').style.display = 'none';
+    setBadge('bdg-miz', '✓ chargé', 'ok');
+
+    unlockAccs(['ac-pkg']);
+    fillAutoFields();
+    renderGroups();
+    initCommsFromGroups();
+    document.getElementById('btn-pdf').disabled = false;
+    setStatus(`${miz.theatre} — ${miz.groups.length + miz.support.length} groupes`, 100);
+  } catch (e) {
+    setStatus('Erreur : ' + e.message, 0);
+    console.error(e);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   BOUTON D'IMPORT D'IMAGE POUR LE BRIEFING ET LES CARTES DE GROUPES
+   ════════════════════════════════════════════════════════════════ */
+
+
+function selectImage(target = 'briefing') {
+  currentImageTarget = target;
+  document.getElementById('img-inp').click();
+}
+
+function handleImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (currentImageTarget === 'briefing') {
+      briefingImage = reader.result;
+    } else if (currentImageTarget && currentImageTarget.startsWith('map:')) {
+      const groupName = currentImageTarget.slice(4);
+      groupMapImages[groupName] = reader.result;
+    } else {
+      briefingImage = reader.result;
+    }
+    renderPreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+/** Remet l'application dans son état initial. */
+function resetApp() {
+  miz = null;
+  selPkg.clear(); selSup.clear();
+  uhfComms = []; vhfComms = [];
+
+  const coalEl = document.getElementById('sel-coalition');
+  if (coalEl) coalEl.value = 'blue';
+
+  ['ac-pkg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('locked');
+  });
+
+  document.getElementById('file-ok').style.display = 'none';
+  document.getElementById('upzone').style.display = '';
+  document.getElementById('miz-inp').value = '';
+  document.getElementById('btn-pdf').disabled = true;
+
+  /* Vider les caches de données par groupe */
+  Object.keys(groupWPs).forEach(k => delete groupWPs[k]);
+  Object.keys(groupLoadout).forEach(k => delete groupLoadout[k]);
+  Object.keys(groupUnitPrefs).forEach(k => delete groupUnitPrefs[k]);
+
+  const kbEl = document.getElementById('kbpages');
+  kbEl.textContent = '';
+  const hint = document.createElement('div');
+  hint.style.cssText = 'text-align:center;padding:80px;color:var(--text3);font-family:var(--mono);font-size:12px;letter-spacing:.1em';
+  hint.textContent = 'CHARGEZ UN FICHIER .MIZ POUR COMMENCER';
+  kbEl.appendChild(hint);
+
+  setBadge('bdg-miz', 'en attente', '');
+  setStatus("En attente d'un fichier .miz", 0);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   UTILITAIRES UI
+   ════════════════════════════════════════════════════════════════ */
+
+function setBadge(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'acc-badge' + (cls ? ' ' + cls : '');
+}
+
+function setStatus(msg, pct) {
+  const sb = document.getElementById('sbar');
+  const pf = document.getElementById('pfill');
+  if (sb) sb.textContent = msg;
+  if (pf) pf.style.width = pct + '%';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const upzoneEl = document.getElementById('upzone');
+  const mizInp = document.getElementById('miz-inp');
+  const imgInp = document.getElementById('img-inp');
+
+  if (mizInp) {
+    mizInp.addEventListener('change', e => {
+      if (e.target.files[0]) loadMiz(e.target.files[0]);
+    });
+  }
+
+  if (imgInp) {
+    imgInp.addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (f && f.type.startsWith('image/')) handleImageFile(f);
+    });
+  }
+
+  if (!upzoneEl) return;
+  upzoneEl.ondragover = e => { e.preventDefault(); upzoneEl.classList.add('drag'); };
+  upzoneEl.ondragleave = () => upzoneEl.classList.remove('drag');
+  upzoneEl.ondrop = e => {
+    e.preventDefault();
+    upzoneEl.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f && f.name.toLowerCase().endsWith('.miz')) loadMiz(f);
+  };
+});
+
+
+/* ════════════════════════════════════════════════════════════════
+   REMPLISSAGE AUTOMATIQUE DES CHAMPS
+   ════════════════════════════════════════════════════════════════ */
+
+function fillAutoFields() {
+  const d = miz;
+  fd.carte = d.theatre;
+  fd.ivl   = (d.date + ' ' + d.time).trim();
+  fd.sr    = d.sunrise;
+  fd.ss    = d.sunset;
+  fd.wind  = d.weather.wind  || '';
+  fd.temp  = d.weather.temp  || '';
+  fd.qnh   = d.weather.qnh   || '';
+  fd.vis   = d.weather.vis   || '';
+
+  const coal = document.getElementById('sel-coalition')?.value || 'blue';
+  const targetCoal = coal === 'all' ? 'blue' : coal;
+  if (d.bullseye && d.bullseye[targetCoal])
+    fd.bull = window.xy2ll(d.bullseye[targetCoal].x, d.bullseye[targetCoal].y, d.theatre);
+
+  if (d.threats) {
+    const enemyCoal = (coal === 'blue') ? 'red' : (coal === 'red' ? 'blue' : null);
+
+    /* ── Menaces surface : via buildThreatSurface (parser) ── */
+    if (typeof window.buildThreatSurface === 'function') {
+      const surfTxt = window.buildThreatSurface(d.threats, enemyCoal);
+      fd.sam = surfTxt || '';
+    }
+
+    /* ── Menaces air : groupes ennemis non-support ── */
+    const airFromThreats = (d.threats.air||[]).filter(t => !enemyCoal || t.coalition === enemyCoal);
+    const enemyGroups = enemyCoal
+      ? [...(d.groups||[]), ...(d.support||[])].filter(g => g.coalition === enemyCoal && !g.isSup)
+      : [];
+    const airTypes = [...new Set([
+      ...airFromThreats.map(t => t.type || t.name),
+      ...enemyGroups.map(g => g.acType || g.name)
+    ])].filter(Boolean);
+    if (airTypes.length) fd.air = airTypes.slice(0, 6).join(', ');
+  }
+
+  /* Mettre à jour les champs readonly du formulaire */
+  const AUTO_MAP = {
+    carte:'f-carte', ivl:'f-ivl',
+    sr:'f-sr', ss:'f-ss',
+    wind:'f-wind', temp:'f-temp', qnh:'f-qnh', vis:'f-vis',
+    bull:'f-bull', sam:'f-sam', air:'f-air'
+  };
+  Object.entries(AUTO_MAP).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = fd[k] || '';
+  });
+}
+
+/** Synchronise un champ du formulaire vers l'objet fd. */
+function syncField(key, elId) {
+  const el = document.getElementById(elId);
+  if (el) fd[key] = el.value || '';
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RENDU DES GROUPES (cartes cliquables)
+   ════════════════════════════════════════════════════════════════ */
+
+function changeCoalition() {
+  selPkg.clear(); selSup.clear();
+  Object.keys(groupWPs).forEach(k => delete groupWPs[k]);
+  Object.keys(groupLoadout).forEach(k => delete groupLoadout[k]);
+  Object.keys(groupUnitPrefs).forEach(k => delete groupUnitPrefs[k]);
+  if (miz) fillAutoFields();   /* recalcule bullseye + menaces selon nouvelle coalition */
+  initCommsFromGroups();
+  renderPreview();
+  renderGroups();
+}
+
+/* Types navires/sol qui ne doivent pas apparaître comme PKG */
+const NON_AIR_RX = /frigate|destroyer|carrier|corvette|cruiser|submarine|boat|patrol|tanker.*ship|LCS|FFG|DDG|CVN|tank|infantry|vehicle|truck|ural/i;
+
+function renderGroups() {
+  const coalFilter = document.getElementById('sel-coalition')?.value || 'blue';
+  const isAirGroup = g => !NON_AIR_RX.test(g.acType || '');
+  const pkg = miz.groups .filter(g => (coalFilter === 'all' || g.coalition === coalFilter) && isAirGroup(g));
+  const sup = miz.support.filter(g => coalFilter === 'all' || g.coalition === coalFilter);
+
+  setBadge('bdg-pkg', `${pkg.length} flight, ${sup.length} support`, 'info');
+
+  const pgEl = document.getElementById('pkg-grd');
+  const sgEl = document.getElementById('sup-grd');
+  pgEl.textContent = '';
+  sgEl.textContent = '';
+
+  pkg.forEach(g => pgEl.appendChild(makeGroupCard(g, 'pkg')));
+  sup.forEach(g => sgEl.appendChild(makeGroupCard(g, 'sup')));
+  document.getElementById('no-sup').style.display = sup.length ? 'none' : '';
+}
+
+/**
+ * Crée une carte cliquable pour un groupe.
+ * @param {object} g   - Groupe
+ * @param {string} type - 'pkg' | 'sup'
+ * @returns {HTMLElement}
+ */
+function makeGroupCard(g, type) {
+  const d  = document.createElement('div');
+  const s  = type === 'pkg' ? selPkg : selSup;
+  d.className = 'gcard' + (s.has(g.name) ? ' on' : '');
+
+  /* Utilise textContent pour éviter tout XSS */
+  const csDiv  = document.createElement('div'); csDiv.className = 'gc-cs'; csDiv.textContent = g.callsign;
+  const sDiv   = document.createElement('div'); sDiv.className  = 'gc-s';  sDiv.textContent  = `${g.numUnits}× ${(g.acType||'?').substring(0,12)}`;
+  const tacanStr = g.tacan ? ` / TCN ${g.tacan}` : '';
+  const frDiv  = document.createElement('div'); frDiv.className = 'gc-s';  frDiv.textContent  = `${window.formatFreq(g.freq)} MHz${tacanStr}`;
+  const tagDiv = document.createElement('span'); tagDiv.className = 'gc-tag ' + (type==='sup'?'tsup':'tpkg');
+  tagDiv.textContent = type === 'sup' ? 'SUPPORT' : 'PKG';
+
+  d.append(csDiv, sDiv, frDiv, tagDiv);
+  d.onclick = () => {
+    s.has(g.name) ? (s.delete(g.name), d.classList.remove('on')) : (s.add(g.name), d.classList.add('on'));
+    initCommsFromGroups();
+    renderPreview();
+  };
+  return d;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GESTION DES COMMS
+   ════════════════════════════════════════════════════════════════ */
+
+function initCommsFromGroups() {
+  const allNames   = [...selPkg, ...selSup];
+  const allObjects = [...(miz.groups || []), ...(miz.support || [])];
+
+  uhfComms = [];
+  vhfComms = [];
+
+  allNames.forEach(name => {
+    const g = allObjects.find(g => g.name === name);
+    if (!g) return;
+
+    /* UHF — channelsUHF fourni par miz_parser */
+    (g.channelsUHF || []).forEach(f => {
+      uhfComms.push({ n: uhfComms.length + 1, freq: f + ' MHz', desc: g.callsign || g.name });
+    });
+    /* Fallback sur freq groupe si pas de canaux */
+    if (!g.channelsUHF?.length && g.freq) {
+      uhfComms.push({ n: uhfComms.length + 1, freq: window.formatFreq(g.freq) + ' MHz', desc: g.callsign || g.name });
+    }
+
+    /* VHF — channelsVHF fourni par miz_parser */
+    (g.channelsVHF || []).forEach(f => {
+      vhfComms.push({ n: vhfComms.length + 1, freq: f + ' MHz', desc: g.callsign || g.name });
+    });
+  });
+
+  renderComms();
+}
+
+function renderComms() {
+  renderCommList('uhf', uhfComms);
+  renderCommList('vhf', vhfComms);
+}
+
+function renderCommList(type, arr) {
+  const c = document.getElementById(type + '-rows');
+  if (!c) return;
+  c.textContent = '';
+  arr.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'comm-grid';
+
+    const num   = document.createElement('span'); num.className = 'comm-num'; num.textContent = i+1;
+    const iFreq = document.createElement('input'); iFreq.value = r.freq; iFreq.placeholder = 'Fréq.';
+    iFreq.onchange = () => { arr[i].freq = iFreq.value; };
+
+    const iDesc = document.createElement('input'); iDesc.value = r.desc; iDesc.placeholder = 'Description';
+    iDesc.onchange = () => { arr[i].desc = iDesc.value; };
+
+    const del = document.createElement('span'); del.className = 'comm-del'; del.textContent = '×';
+    del.onclick = () => { arr.splice(i, 1); renderComms(); renderPreview(); };
+
+    row.append(num, iFreq, iDesc, del);
+    c.appendChild(row);
+  });
+}
+
+function addComm(type) {
+  (type === 'uhf' ? uhfComms : vhfComms).push({ n:0, freq:'', desc:'' });
+  renderComms();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RENDU DE L'APERÇU
+   ════════════════════════════════════════════════════════════════ */
+
+function renderPreview() {
+  if (!miz) return;
+  const coalFilter = document.getElementById('sel-coalition')?.value || 'blue';
+
+  const pages = document.getElementById('kbpages');
+  pages.textContent = '';
+
+  const selectedPkg = [...selPkg].map(name => miz.groups .find(g => g.name === name)).filter(Boolean);
+  const selectedSup = [...selSup].map(name => miz.support.find(g => g.name === name)).filter(Boolean);
+
+  pages.appendChild(mkBriefPair(selectedPkg, selectedSup));
+
+  /* Générer une datacard pour chaque flight sélectionné */
+  const selectedGroups = selectedPkg;
+
+  selectedGroups.forEach((g, idx) => {
+    /* Init waypoints si pas encore fait */
+    if (!groupWPs[g.name]) {
+      groupWPs[g.name] = (g.waypoints || []).slice(0,20).map((wp, i, arr) => {
+        let hdg = '—', dist = '—';
+        if (i > 0) {
+          const hd = window.calcHdgDist(arr[i-1].x, arr[i-1].y, wp.x, wp.y);
+          hdg = hd.hdg; dist = hd.dist;
+        }
+        const distNm = parseFloat(dist) || 0;
+        return {
+          desc:     wp.desc     || 'WP',
+          hdg,
+          distNm,                              /* NM brut pour conversion */
+          dist,                                /* affiché selon unité groupe */
+          speed:    wp.speed    || 0,          /* kts brut */
+          speedKmh: wp.speedKmh || 0,          /* km/h brut */
+          alt:      wp.alt      || 0,          /* ft brut */
+          altM:     wp.altM     || 0,          /* m brut */
+          eta:      wp.eta      || '',
+          tos:      '',
+          note:     wp.note     || '',
+          coord:    String(window.xy2dmm(wp.x, wp.y, miz.theatre))
+        };
+      });
+    }
+    /* Init loadout (toujours, même si pas de waypoints) */
+    if (!groupLoadout[g.name]) {
+      const cmParts = [];
+      if (g.flare > 0) cmParts.push(`F:${g.flare}`);
+      if (g.chaff > 0) cmParts.push(`C:${g.chaff}`);
+      if (g.gun   > 0) cmParts.push(`G:${g.gun}%`);
+      const cmStr = cmParts.length ? '  ' + cmParts.join(' ') : '';
+      groupLoadout[g.name] = {
+        loadout:  (g.weapons || []).slice(0,5).join(', ') + cmStr,
+        fuelKg:   g.fuelKg || 0,
+        fuelUnit: 'kg',
+        fuel:     g.fuelKg ? String(g.fuelKg) : (g.fuel || ''),
+        joker:'', bingo:''
+      };
+    }
+    pages.appendChild(mkDatacardPair(g, idx));
+  });
+
+  /* Navigation par points : 1 dot per briefing, 1 dot per datacard pair */
+  const dots = document.getElementById('pdots');
+  dots.textContent = '';
+  const n = 1 + selectedGroups.length;
+  for (let i = 0; i < n; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'pdot' + (i === 0 ? ' on' : '');
+    dot.title = i === 0 ? 'Briefing' : `Datacard ${i}`;
+    dot.onclick = () => gotoPage(i);
+    dots.appendChild(dot);
+  }
+}
+
+function gotoPage(i) {
+  const pgs = [...document.querySelectorAll('.kb-page')];
+  if (pgs[i*2]) pgs[i*2].scrollIntoView({ behavior:'smooth', block:'start' });
+  document.querySelectorAll('.pdot').forEach((d, j) => d.classList.toggle('on', j === i));
+}
+
+/* Synchronisation des dots lors du scroll */
+const ioObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const pgs  = [...document.querySelectorAll('.kb-page')];
+      const idx  = Math.floor(pgs.indexOf(e.target) / 2);
+      if (idx >= 0) document.querySelectorAll('.pdot').forEach((d, j) => d.classList.toggle('on', j === idx));
+    }
+  }); // <-- Ajoute la fermeture du forEach ici
+}, { threshold:.4, root: document.getElementById('rscroll') });
+
+const mutObserver = new MutationObserver(() => {
+  document.querySelectorAll('.kb-page').forEach(p => ioObserver.observe(p));
+});
+mutObserver.observe(document.getElementById('kbpages'), { childList:true });
+
+/* ════════════════════════════════════════════════════════════════
+   CONSTRUCTEURS DE CELLULES (DOM sécurisé)
+   ════════════════════════════════════════════════════════════════ */
+
+/**
+ * Crée une cellule kb-c avec étiquette + valeur éditable.
+ * Toutes les valeurs passent par textContent (pas d'innerHTML).
+ * @param {string} label
+ * @param {string} value
+ * @param {Function} [onblur] - Callback appelé avec la nouvelle valeur
+ * @returns {HTMLElement}
+ */
+function makeCell(label, value, onblur) {
+  const cell  = document.createElement('div');  cell.className  = 'kb-c';
+  const lbl   = document.createElement('span'); lbl.className   = 'kb-cl'; lbl.textContent = label;
+  const val   = document.createElement('span'); val.className   = 'kb-cv'; val.textContent = value || '';
+  val.contentEditable = 'true';
+  if (onblur) val.addEventListener('blur', () => onblur(val.textContent));
+  cell.append(lbl, val);
+  return cell;
+}
+
+function syncKbPair(pair) {
+  const cells = [...pair.querySelectorAll(':scope > .kb-c')];
+  const pairHeight = pair.clientHeight || parseFloat(getComputedStyle(pair).height) || 0;
+  if (!pairHeight || cells.length === 0) return;
+
+  cells.forEach(c => c.style.height = 'auto');
+
+  const labelHeights = cells.map(c => {
+    const lbl = c.querySelector('.kb-cl');
+    const style = getComputedStyle(c);
+    return (lbl ? lbl.offsetHeight : 0) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  });
+  const contentHeights = cells.map(c => c.querySelector('.kb-cv').scrollHeight);
+  const gap = parseFloat(getComputedStyle(pair).rowGap || 0) * (cells.length - 1);
+  const available = Math.max(0, pairHeight - labelHeights.reduce((sum, v) => sum + v, 0) - gap);
+  const totalContent = Math.max(1, contentHeights.reduce((sum, v) => sum + v, 0));
+
+  let used = 0;
+  cells.forEach((c, i) => {
+    const share = Math.max(40, Math.round((contentHeights[i] / totalContent) * available));
+    c.style.height = `${labelHeights[i] + share}px`;
+    used += share;
+  });
+
+  const diff = available - used;
+  if (diff !== 0) {
+    const last = cells[cells.length - 1];
+    const lastHeight = parseFloat(last.style.height) || 0;
+    last.style.height = `${Math.max(0, lastHeight + diff)}px`;
+  }
+}
+
+/**
+ * Crée une cellule de tableau <td> éditable.
+ * @param {string|number} value
+ * @param {object} [opts] - { style, mono, center, right }
+ * @returns {HTMLTableCellElement}
+ */
+function makeTd(value, opts = {}) {
+  const td = document.createElement('td');
+  td.contentEditable = 'true';
+  td.textContent = value != null ? String(value) : '';
+  if (opts.style) td.style.cssText = opts.style;
+  if (opts.mono)  td.style.fontFamily = "'Share Tech Mono', monospace";
+  if (opts.center) td.style.textAlign = 'center';
+  if (opts.right)  td.style.textAlign = 'right';
+  if (opts.bold)   td.style.fontWeight = '800';
+  return td;
+}
+
+function parseTimeToSeconds(value) {
+  if (!value) return null;
+  const str = String(value).trim().replace(/Z$/i, '').replace(/^\+/, '');
+  const m = str.match(/^(-?)(\d{1,2}):?(\d{2})(?::?(\d{2}))?$/);
+  if (!m) return null;
+  const sign = m[1] === '-' ? -1 : 1;
+  return sign * (parseInt(m[2],10)*3600 + parseInt(m[3],10)*60 + (m[4]?parseInt(m[4],10):0));
+}
+
+/** Formate des secondes absolues (0-86400) en HH:MM */
+function secsAbsToHHMM(totalSecs) {
+  const s = ((totalSecs % 86400) + 86400) % 86400;
+  return String(Math.floor(s/3600)).padStart(2,'0') + ':' + String(Math.floor((s%3600)/60)).padStart(2,'0');
+}
+
+/**
+ * formatEtaValue — utilisé seulement pour les cellules ETA éditées manuellement.
+ * Pour le calcul cumulatif auto, voir buildTable dans makeWPTable.
+ */
+function formatEtaValue(value, baseTime) {
+  if (value == null || value === '') return '';
+  const str   = String(value).trim();
+  const relSec = parseTimeToSeconds(str);
+  if (baseTime != null) {
+    const baseSec = parseTimeToSeconds(baseTime);
+    if (baseSec != null && relSec != null) return secsAbsToHHMM(baseSec + relSec);
+  }
+  if (relSec != null) return secsAbsToHHMM(relSec);
+  return str.replace(/^\+/, '').split(':').slice(0,2).join(':');
+}
+
+function formatWpDistance(value) {
+  if (value == null || value === '') return '';
+  const n = Number(String(value).replace(/[^0-9.\-]/g, ''));
+  if (!Number.isFinite(n)) return String(value);
+  return String(Math.round(n));
+}
+
+/**
+ * Crée une ligne de tableau de waypoints.
+ * @param {object} wp    - Données du waypoint
+ * @param {number} idx   - Index dans le tableau
+ * @param {string} gname - Nom du groupe
+ * @returns {HTMLTableRowElement}
+ */
+function makeWpRow(wp, idx, gname) {
+  const tr = document.createElement('tr');
+  /* wp.etaDisplay est pré-calculé cumulativement dans buildTable */
+  const eta = wp.etaDisplay != null ? wp.etaDisplay : formatEtaValue(wp.eta, wp.baseToTime);
+  const note = String(wp.note || '').trim();
+  const coord = wp.coord ? String(wp.coord).trim() : '';
+  const speed_alt = `${wp.speed || '--'} / ${wp.alt || '--'}`;
+  
+  const tds = [
+    makeTd(idx+1,        { center:true }),
+    makeTd(wp.desc),
+    makeTd(note,         { style:'font-size:8.5px;color:#333' }),
+    makeTd(coord,        { style:'font-size:8.5px;color:#333;font-family:\'Share Tech Mono\',monospace' }),
+    makeTd(wp.hdg,       { center:true }),
+    makeTd(formatWpDistance(wp.dist), { right:true, mono:true }),
+    makeTd(speed_alt,    { right:true, mono:true, style:'font-size:8px' }),
+    (() => {
+      const td = makeTd(eta, { center:true, mono:true });
+      /* Marquer la cellule comme éditée manuellement si l'utilisateur la change */
+      td.addEventListener('input', () => { td.dataset.manual = '1'; });
+      /* Stocker l'ETA calculé pour que buildTable puisse le lire */
+      td.dataset.etaCalc = eta;
+      return td;
+    })(),
+    makeTd(wp.tos || '', { center:true, mono:true, style:'font-size:8px' }),
+  ];
+  const del = document.createElement('td');
+  del.className = 'row-del';
+  del.textContent = '−';
+  del.onclick = () => { groupWPs[gname].splice(idx, 1); renderPreview(); };
+  tds.push(del);
+  tr.append(...tds);
+  return tr;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PAGE 1 + 2 : BRIEFING MISSION
+   ════════════════════════════════════════════════════════════════ */
+
+function mkBriefPair(pkg, sup) {
+  const wrap = document.createElement('div'); wrap.className = 'kb-wrap';
+  const lbl  = document.createElement('div'); lbl.className  = 'kb-plbl';
+  lbl.textContent = 'PAGE 01 & 02 — BRIEFING MISSION';
+  wrap.appendChild(lbl);
+
+  wrap.appendChild(mkBriefPage1(pkg, sup));
+  wrap.appendChild(mkBriefPage2());
+  return wrap;
+}
+
+function mkBriefPage1(pkg, sup) {
+  const page = document.createElement('div'); page.className = 'kb-page';
+
+  const hdr = document.createElement('div'); hdr.className = 'kb-mhdr';
+  const ht  = document.createElement('span'); ht.className = 'kb-mhdr-t'; ht.textContent = 'Mission Briefing / Mission Card';
+  const hr  = document.createElement('span'); hr.className = 'kb-mhdr-r'; hr.textContent = miz.theatre || '';
+  hdr.append(ht, hr);
+
+  const row1 = document.createElement('div'); row1.className = 'kb-grid4';
+  row1.style.cssText = 'border:.5px solid #c0bdb5';
+  row1.append(
+    makeCell('Nom mission', fd.nom),
+    makeCell('Date/Heure IRL', fd.irl),
+    makeCell('Date/Heure IVL', fd.ivl),
+    makeCell('Carte / Théatre', fd.carte || miz.theatre || '' )
+  );
+
+  const row2 = document.createElement('div'); row2.className = 'kb-grid2';
+  row2.style.cssText = 'grid-template-columns:2fr 1fr;border:.5px solid #c0bdb5;border-top:none';
+  row2.append(
+    makeCell('Conditions météo', [fd.qnh, fd.wind, fd.temp, fd.vis].filter(Boolean).join(' | ')),
+    makeCell('Sunrise-Sunset', [fd.sr, fd.ss].filter(Boolean).join(' / '))
+  );
+
+  const body = document.createElement('div');
+  body.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;gap:1px';
+
+  const shdObj = mkShdr('Objectifs / Objectives');
+  const objMain = makeCell('Objectifs principaux', fd.obj1);
+  const objSec  = makeCell('Objectifs secondaires', fd.obj2);
+  const objPair = document.createElement('div');
+  objPair.className = 'kb-pair';
+  objPair.style.minHeight = '220px';
+  objPair.style.height = '220px';
+  objPair.append(objMain, objSec);
+
+  const shdExec = mkShdr('EXECUTION DE LA MISSION / MISSION EXECUTION');
+  const execBloc = makeCell('Qui / Quand / Comment', fd.exec);
+  execBloc.querySelector('.kb-cv').style.whiteSpace = 'normal';
+  execBloc.style.flex = '1';
+  execBloc.style.minHeight = '140px';
+  const roeBloc  = makeCell('R.O.E.', fd.roe);
+  roeBloc.querySelector('.kb-cv').style.whiteSpace = 'normal';
+  roeBloc.style.flex = '0';
+  roeBloc.style.height = '42px';
+  roeBloc.style.minHeight = '42px';
+  roeBloc.style.maxHeight = '42px';
+  roeBloc.style.overflow = 'hidden';
+  const shdNav = mkShdr('FACTEUR DE NAVIGATION / ROUTING FACTOR');
+  const navRow = document.createElement('div'); navRow.className = 'kb-grid5';
+  navRow.style.cssText = 'border:.5px solid #c0bdb5';
+  const tankers = sup.filter(g => /tanker|kc/i.test(g.name) || /kc/i.test(g.acType || ''));
+  navRow.append(
+    makeCell('Bullseye', fd.bull),
+    makeCell('CAP ZONE', fd.cap),
+    makeCell('RDV Point', fd.pen || ''),
+    makeCell('Zone Rav. #1', tankers[0] ? `${tankers[0].callsign} ${window.formatFreq(tankers[0].freq)}` : ''),
+    makeCell('Zone Rav. #2', tankers[1] ? `${tankers[1].callsign} ${window.formatFreq(tankers[1].freq)}` : '')
+  );
+
+  const shdIntel = mkShdr('INTELLIGENCE ET MENACES');
+  const intelSam = makeCell('Menaces surface', fd.sam);
+  intelSam.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
+  intelSam.querySelector('.kb-cv').style.fontSize   = '9px';
+  const intelAir = makeCell('Menaces aériennes', fd.air);
+  const intelArm = makeCell('Limitation armement', fd.armt);
+  const intelPair = document.createElement('div');
+  intelPair.className = 'kb-pair';
+  intelPair.style.minHeight = '200px';
+  intelPair.style.height = '200px';
+  intelPair.append(intelSam, intelAir);
+  [intelSam, intelAir, intelArm].forEach(c => c.querySelector('.kb-cv').style.whiteSpace = 'normal');
+
+  body.append(shdObj, objPair, shdExec, execBloc, roeBloc, shdNav, navRow, shdIntel, intelPair, intelArm);
+
+  syncKbPair(objPair);
+  syncKbPair(intelPair);
+  [...objPair.querySelectorAll('.kb-cv')].forEach(el => {
+    ['input', 'keyup', 'paste'].forEach(evt => el.addEventListener(evt, () => setTimeout(() => syncKbPair(objPair), 0)));
+  });
+  [...intelPair.querySelectorAll('.kb-cv')].forEach(el => {
+    ['input', 'keyup', 'paste'].forEach(evt => el.addEventListener(evt, () => setTimeout(() => syncKbPair(intelPair), 0)));
+  });
+
+  const theatreAFs = getTheatreAirfields();
+  const dlId = 'brief-af-dl';
+  const dl = document.createElement('datalist'); dl.id = dlId;
+  theatreAFs.forEach(af => { const opt = document.createElement('option'); opt.value = af.name; dl.appendChild(opt); });
+
+  const shdPkg = mkShdr('PATROUILLE D\'EXECUTION / EXECUTION PACKAGE');
+  const pkgTbl = makePkgTable(pkg, dlId);
+  const shdSup = mkMhdr2('SUPPORTS (AAR / AWACS / JTAC...)');
+  const supTbl = makeSupTable(sup);
+
+  page.append(dl, hdr, row1, row2, body, shdPkg, pkgTbl, shdSup, supTbl);
+  return page;
+}
+
+function mkBriefPage2() {
+  const page = document.createElement('div'); page.className = 'kb-page';
+  const hdr = document.createElement('div'); hdr.className = 'kb-mhdr';
+  const ht  = document.createElement('span'); ht.className = 'kb-mhdr-t'; ht.textContent = 'Mission Briefing / Notes et dessins additionnels';
+  const btn = document.createElement('button');
+  btn.className = 'kb-img-btn';
+  btn.type = 'button';
+  btn.textContent = '🖼 Image';
+  btn.title = 'Insérer une image pour le briefing';
+  btn.onclick = () => selectImage('briefing');
+  const btnClear = document.createElement('button');
+  btnClear.className = 'kb-img-btn no-print';
+  btnClear.type = 'button';
+  btnClear.textContent = '✕ Clear';
+  btnClear.title = 'Effacer l\'image du briefing';
+  btnClear.onclick = () => { briefingImage = null; renderPreview(); };
+  const right = document.createElement('div');
+  right.style.display = 'flex'; right.style.alignItems = 'center'; right.style.gap = '4px';
+  right.append(btn, btnClear);
+  hdr.append(ht, right);
+
+  const imgArea = document.createElement('div');
+  imgArea.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:12px;border:.5px solid #c0bdb5;overflow:hidden;background:#f4f1eb;color:#444;';
+  imgArea.contentEditable = 'true';
+
+  if (briefingImage) {
+    const img = document.createElement('img');
+    img.src = briefingImage;
+    img.alt = 'Image de briefing';
+    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;display:block';
+    imgArea.appendChild(img);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.style.cssText = 'color:#666;font-size:10px;text-align:center;line-height:1.4;white-space:pre-wrap;margin-top:10px;';
+    placeholder.textContent = 'Zone remplissable : image ou texte. Importer une image via le bouton Image.';
+    imgArea.appendChild(placeholder);
+  }
+
+  page.append(hdr, imgArea);
+  return page;
+}
+
+/* ─ Tableau package vol ─ */
+function makePkgTable(pkg, dlId) {
+  const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
+  const thead = tbl.createTHead();
+  const hr = thead.insertRow();
+  ['N°','Callsign','Nb','Type','Task/Rôle','Fréq.TAC','Fréq.INT','TCN','Airfield T/O','UHF','VHF'].forEach((h, i) => {
+    const th = document.createElement('th'); th.textContent = h;
+    const widths = ['14px','46px','14px','46px','62px','44px','44px','24px','74px','38px','38px'];
+    th.style.width = widths[i] || '';
+    th.style.textAlign = i === 1 ? 'left' : 'center';
+    hr.appendChild(th);
+  });
+  const tbody = tbl.createTBody();
+  const rows = Math.max(pkg.length, 5);
+  for (let i = 0; i < rows; i++) {
+    if (pkg[i]) tbody.appendChild(makePkgRow(pkg[i], i, dlId));
+    else {
+      const tr = tbody.insertRow();
+      for (let j = 0; j < 11; j++) {
+        const td = tr.insertCell(); td.contentEditable = 'true';
+        td.style.textAlign = j === 1 ? 'left' : 'center';
+      }
+    }
+  }
+  return tbl;
+}
+
+function makePkgRow(g, i, dlId) {
+  const tr = document.createElement('tr');
+  const af   = g.airdrome;
+  const afId = 'brief-af-' + safeId(g.name);
+
+  const tdNum = makeTd(i+1, { center:true });
+  const tdCs  = makeTd(g.callsign, { bold:true });
+  const tdNb  = makeTd(g.numUnits, { center:true });
+  const tdType= makeTd(g.acType || '?', { center:true });
+  const tdTask= makeTd(g.task || '', { center:true });
+  const tdF1  = makeTd(window.formatFreq(g.freq), { mono:true, center:true });
+  const tdF2  = document.createElement('td'); tdF2.contentEditable = 'true';
+  tdF2.style.textAlign = 'center';
+  const tdTcn = makeTd(g.tacan || '—', { center:true });
+
+  /* Input avec datalist pour l'airfield */
+  const tdAf = document.createElement('td');
+  tdAf.style.textAlign = 'center';
+  const inp = document.createElement('input');
+  inp.id = afId;
+  inp.className = 'af-input';
+  inp.setAttribute('list', dlId);
+  inp.value = af ? af.name : '';
+  inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:10px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:center';
+  inp.addEventListener('input', () => syncAirfieldFromBrief(inp, g.name));
+  tdAf.appendChild(inp);
+
+  const tdUhf = document.createElement('td'); tdUhf.id = afId+'-uhf'; tdUhf.contentEditable = 'true';
+  tdUhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
+  tdUhf.textContent = af ? (af.uhf !== 'n/a' ? af.uhf : '—') : '';
+
+  const tdVhf = document.createElement('td'); tdVhf.id = afId+'-vhf'; tdVhf.contentEditable = 'true';
+  tdVhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
+  tdVhf.textContent = af ? (af.vhf !== 'n/a' ? af.vhf : '—') : '';
+
+  tr.append(tdNum, tdCs, tdNb, tdType, tdTask, tdF1, tdF2, tdTcn, tdAf, tdUhf, tdVhf);
+  return tr;
+}
+
+function makeSupTable(sup) {
+  const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
+  const thead = tbl.createTHead();
+  const hr = thead.insertRow();
+  ['N°','Callsign','Nb','Type','Task/Rôle','Fréq.UHF','Fréq.VHF','TCN','Plage horaire active','Position BE/WP'].forEach((h,i) => {
+    const th = document.createElement('th'); th.textContent = h;
+    const widths = ['16px','52px','18px','42px','70px','48px','48px','32px','78px','86px'];
+    th.style.width = widths[i] || '';
+    th.style.textAlign = i === 1 ? 'left' : 'center';
+    hr.appendChild(th);
+  });
+  const tbody = tbl.createTBody();
+  const rows = Math.max(sup.length, 5);
+  for (let i = 0; i < rows; i++) {
+    const tr = tbody.insertRow();
+    if (sup[i]) {
+      const g = sup[i];
+      const orbitPos = (g.tankerOrbit && g.tankerOrbit.posFromBull) ? g.tankerOrbit.posFromBull : '';
+      const orbitAlt = (g.tankerOrbit && g.tankerOrbit.altFt) ? `${g.tankerOrbit.altFt}ft / ${g.tankerOrbit.speedKts}kts` : '';
+      const row = [i+1, g.callsign, g.numUnits || '', g.acType || '', g.task || '', window.formatFreq(g.freq), '', g.tacan || '', orbitAlt, orbitPos];
+      row.forEach((v, j) => {
+        const td = tr.insertCell(); td.contentEditable = 'true'; td.textContent = String(v || '');
+        td.style.textAlign = j === 1 ? 'left' : 'center';
+        if (j === 1) td.style.fontWeight = '800';
+        if ([5,6,7].includes(j)) td.style.fontFamily = "'Share Tech Mono',monospace";
+      });
+    } else {
+      for (let j = 0; j < 10; j++) {
+        const td = tr.insertCell(); td.contentEditable = 'true';
+        td.style.textAlign = j === 1 ? 'left' : 'center';
+      }
+    }
+  }
+  return tbl;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PAGE 3+4 : DATACARD PAR GROUPE
+   ════════════════════════════════════════════════════════════════ */
+
+function mkDatacardPair(g, idx) {
+  const wrap = document.createElement('div'); wrap.className = 'kb-wrap';
+  const lbl  = document.createElement('div'); lbl.className  = 'kb-plbl';
+  lbl.textContent = `PAGE ${String(idx*2+3).padStart(2,'0')} & ${String(idx*2+4).padStart(2,'0')} — DATACARD #${idx+1} — ${g.callsign.toUpperCase()}`;
+  wrap.appendChild(lbl);
+  wrap.appendChild(mkDatacardPage1(g, idx));
+  wrap.appendChild(mkDatacardPage2(g, idx));
+  return wrap;
+}
+
+function mkDatacardPage1(g, idx) {
+  const page = document.createElement('div'); page.className = 'kb-page';
+  const lo = groupLoadout[g.name] || { loadout:'', fuel:'', joker:'', bingo:'' };
+
+  /* En-tête */
+  const hdr = document.createElement('div'); hdr.className = 'kb-mhdr';
+  const ht  = document.createElement('span'); ht.className = 'kb-mhdr-t';
+  ht.textContent = `Datacard #${idx+1} — ${g.callsign.toUpperCase()}`;
+  const hr  = document.createElement('span'); hr.className = 'kb-mhdr-r';
+  hr.textContent = `${g.numUnits}× ${g.acType || '?'}`;
+  hdr.append(ht, hr);
+
+  /* Fréquences - format NNN.NN */
+  const flightUHF = g.freq ? window.formatFreq(g.freq) : '—';
+  const flightVHF = (g.channelsVHF && g.channelsVHF[0]) ? window.formatFreq(g.channelsVHF[0]) : '—';
+
+  /* ── Flight Group info ── */
+  const shdFG = mkShdr('Flight Group');
+  const rowFG = document.createElement('div'); rowFG.className = 'kb-grid5';
+  rowFG.style.cssText = 'border:.5px solid #c0bdb5';
+  rowFG.append(
+    makeCell('Callsign', g.callsign),
+    makeCell('Aircraft', g.acType || '?'),
+    makeCell('Rôle / Task', g.task || ''),
+    makeCell('Mission', fd.nom || ''),
+    makeCell('Radio - Tactical', flightUHF)
+  );
+
+  /* Times */
+  const rowTimes = document.createElement('div'); rowTimes.className = 'kb-grid5';
+  rowTimes.style.cssText = 'border:.5px solid #c0bdb5;border-top:none';
+  rowTimes.append(
+    (() => {
+      const c = makeCell('T/O Time', g.toTime || '');
+      const cv = c.querySelector('.kb-cv');
+      cv.dataset.toGroup = g.name;
+      /* Quand T/O Time change, re-rendre le tableau WP pour recalculer les ETA */
+      cv.addEventListener('input', () => {
+        /* Chercher le wrapper div qui contient le tableau WP */
+        const tbl = document.querySelector(`[data-wp-group="${CSS.escape(g.name)}"]`);
+        if (tbl) {
+          const wrapper = tbl.parentElement;
+          if (wrapper) wrapper.dispatchEvent(new Event('refresh-eta'));
+        }
+      });
+      return c;
+    })(),
+    makeCell('Push Time', ''),
+    makeCell('Tgt / TOT', g.totTime || ''),
+    makeCell('', ''),
+    makeCell('Radio - Internal', flightVHF)
+  );
+
+  /* Membres */
+  const shdMbr = mkShdr('Members');
+  const mbrTbl = makeMembersTable(g);
+  
+  /* Configurations & Loadout */
+  const shdCfg = mkShdr('Configurations & Loadout');
+  const cfgRow = document.createElement('div'); cfgRow.className = 'kb-grid12';
+  cfgRow.style.cssText = 'border:.5px solid #c0bdb5;border-top:none;gap:1px';
+  const loCellLarge = makeCell('Armement', lo.loadout);
+  loCellLarge.style.gridColumn = 'span 9';
+  loCellLarge.querySelector('.kb-cv').style.whiteSpace = 'normal';
+  /* ── Fuel cell avec sélecteur d'unité ── */
+  const fuelUnitSel = document.createElement('select');
+  fuelUnitSel.style.cssText = 'font-size:8px;border:none;background:transparent;color:#0d1e3e;font-weight:700;cursor:pointer;max-width:34px';
+  ['kg','lbs','gal'].forEach(u => {
+    const opt = document.createElement('option'); opt.value = u; opt.textContent = u;
+    if (u === (lo.fuelUnit||'kg')) opt.selected = true;
+    fuelUnitSel.appendChild(opt);
+  });
+  const fuelValEl = document.createElement('span');
+  fuelValEl.className = 'kb-cv'; fuelValEl.contentEditable = 'true';
+  fuelValEl.textContent = lo.fuel || '';
+  const fuelLblEl = document.createElement('span');
+  fuelLblEl.className = 'kb-cl';
+  fuelLblEl.style.display = 'flex'; fuelLblEl.style.alignItems = 'center'; fuelLblEl.style.gap = '2px';
+  const fuelLblTxt = document.createElement('span'); fuelLblTxt.textContent = 'Fuel';
+  fuelLblEl.append(fuelLblTxt, document.createTextNode(' ('), fuelUnitSel, document.createTextNode(')'));
+  const fuelCell = document.createElement('div'); fuelCell.className = 'kb-c';
+  fuelCell.append(fuelLblEl, fuelValEl);
+  fuelUnitSel.addEventListener('change', () => {
+    const from = lo.fuelUnit || 'kg';
+    const to   = fuelUnitSel.value;
+    const kg   = lo.fuelKg || 0;
+    let converted = kg;
+    if      (to === 'lbs') converted = Math.round(window.conv.kgToLbs(kg));
+    else if (to === 'gal') converted = Math.round(window.conv.kgToGal(kg));
+    lo.fuelUnit = to;
+    lo.fuel = String(converted);
+    fuelValEl.textContent = lo.fuel;
+  });
+  cfgRow.append(loCellLarge, fuelCell, makeCell('Joker', lo.joker), makeCell('Bingo', lo.bingo || ''));
+
+  /* Airbases */
+  const shdAf  = mkShdr('Airbases (T/O - ALT - DIV)');
+  const afTbl  = makeAirbaseTable(g);
+
+  /* Objectives & Tacticals - maximized */
+  const shdObj = mkShdr('Objectives & Tacticals');
+  const objFree = document.createElement('div');
+  objFree.className = 'kb-free';
+  objFree.style.flex = '1.5';
+  objFree.contentEditable = 'true';
+  objFree.dataset.placeholder = 'Notes tactiques, dessins, croquis...';
+  const objPriority = [fd.obj1, fd.exec, fd.obj2, fd.sam, fd.air, fd.armt].filter(Boolean);
+  objFree.textContent = objPriority.join('\n');
+
+  /* Comm ladder - 8 colonnes (4 UHF + 4 VHF) */
+  const shdComm = mkShdr('Comm. Ladder (UHF / VHF)');
+  const commGrid = makeCommLadder8Col(g);
+
+  page.append(hdr, shdFG, rowFG, rowTimes, shdMbr, mbrTbl, shdCfg, cfgRow, shdAf, afTbl, shdObj, objFree, shdComm, commGrid);
+  return page;
+}
+
+/**
+ * Construit le tableau "Comm Ladder" adaptatif pour une datacard.
+ *
+ * LOGIQUE ADAPTATIVE :
+ *   - Maximum absolu : 20 fréquences par radio (UHF et VHF).
+ *   - Le tableau est toujours en 12 colonnes :
+ *       [N° | Freq. | Desc.] × 2 pour UHF  +  [N° | Freq. | Desc.] × 2 pour VHF
+ *   - Le nombre de LIGNES (rowCount) s'adapte au plus grand nombre
+ *     de presets disponibles pour ce flight :
+ *       · 0–10  presets → 10 lignes (1–10 colonne gauche, 11–20 colonne droite,
+ *                          mais seule la colonne gauche sera remplie)
+ *       · 11–20 presets → rowCount = ceil(maxCount / 2), arrondi à l'entier sup.
+ *         Exemple : 15 presets → ceil(15/2) = 8 lignes
+ *                   (col. gauche 1–8, col. droite 9–16, lignes 16 vide)
+ *   - Les cellules sans preset restent vides mais restent éditables.
+ *
+ * @param {object} g - Données du groupe (flight)
+ * @returns {HTMLElement} - Le wrapper contenant le comm ladder
+ */
+function makeCommLadder8Col(g) {
+
+  /* ── 1. Récupération et formatage des presets (max 20 par radio) ── */
+  const uhfAll = (g.channelsUHF || []).slice(0, 20).map(f => window.formatFreq(f));
+  const vhfAll = (g.channelsVHF || []).slice(0, 20).map(f => window.formatFreq(f));
+
+  /* Nombre maximum de presets réellement disponibles pour ce flight */
+  const maxPresets = Math.max(uhfAll.length, vhfAll.length);
+
+  /* ── 2. Calcul adaptatif du nombre de lignes ────────────────────────
+     On veut 2 colonnes × rowCount = couvrir tous les presets.
+     Si aucun preset détecté, on affiche quand même 10 lignes vides.  */
+  const rowCount = maxPresets <= 10
+    ? 10                                         // cas ≤ 10 : 10 lignes, col. droite vide
+    : Math.ceil(maxPresets / 2);                 // cas 11-20 : division en 2 colonnes égales
+
+  /* ── 3. Définition de la grille CSS (12 colonnes identiques) ────────
+     Même gabarit pour les en-têtes et les lignes de données.
+     Les colonnes "Description" sont plus larges (minmax).              */
+  const GRID_COLS = '18px 58px minmax(80px,1fr) 18px 58px minmax(80px,1fr) 18px 58px minmax(80px,1fr) 18px 58px minmax(80px,1fr)';
+
+  /* ── 4. Wrapper principal ───────────────────────────────────────── */
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'width:100%;overflow:hidden';
+
+  /* ── 5. Rangée 1 : grands en-têtes UHF / VHF ───────────────────── */
+  const hdrRow = document.createElement('div');
+  hdrRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;border:.5px solid #c0bdb5;border-bottom:none';
+
+  ['UHF Radio 1','VHF Radio 2'].forEach((label, i) => {
+    const h = document.createElement('div');
+    /* Séparateur central entre UHF et VHF */
+    const borderRight = i === 0 ? '1.5px solid #8a9abc' : '.5px solid #c0bdb5';
+    h.style.cssText = `background:#1a3560;color:#fff;font-weight:800;font-size:9px;
+      letter-spacing:.07em;text-transform:uppercase;text-align:center;
+      padding:2px 0;border-right:${borderRight}`;
+    h.textContent = label;
+    hdrRow.appendChild(h);
+  });
+
+  /* ── 6. Rangée 2 : sous-en-têtes des 12 colonnes ───────────────── */
+  const colHdrRow = document.createElement('div');
+  colHdrRow.style.cssText = `display:grid;grid-template-columns:${GRID_COLS};
+    border:.5px solid #c0bdb5;border-top:none;border-bottom:none`;
+
+  /* 4 groupes × 3 colonnes = 12 cellules d'en-tête
+     Séparateur fort après la colonne "Desc." du groupe 0 (fin UHF col.1)
+     et du groupe 2 (fin VHF col.1)                                     */
+  for (let grpIdx = 0; grpIdx < 4; grpIdx++) {
+    ['N°', 'Freq.', 'Description'].forEach((lbl, ci) => {
+      const th = document.createElement('div');
+      const borderRight =
+        (grpIdx === 0 && ci === 2) ? '1.5px solid #8a9abc' :   // séparateur UHF col1/col2
+        (grpIdx === 2 && ci === 2) ? '1.5px solid #8a9abc' :   // séparateur VHF col1/col2
+        '.5px solid #c0bdb5';
+      th.style.cssText = `background:#2a3f6f;color:#fff;font-size:7.5px;font-weight:700;
+        text-align:center;padding:1px 0;border-right:${borderRight};letter-spacing:.03em`;
+      th.textContent = lbl;
+      colHdrRow.appendChild(th);
+    });
+  }
+
+  /* ── 7. Rangées de données ─────────────────────────────────────── */
+  const bodyDiv = document.createElement('div');
+  bodyDiv.style.cssText = 'border:.5px solid #c0bdb5;border-top:none';
+
+  for (let row = 0; row < rowCount; row++) {
+    const dataRow = document.createElement('div');
+    dataRow.style.cssText = `display:grid;grid-template-columns:${GRID_COLS};
+      border-bottom:.5px solid #ddd`;
+
+    /* Alternance de couleur de fond pour faciliter la lecture */
+    const bg = row % 2 === 0 ? '#f3f3f3' : '#fff';
+
+    /* Parcourir les 4 groupes de colonnes :
+         grp 0 → UHF colonne gauche  (presets 1 à rowCount)
+         grp 1 → UHF colonne droite  (presets rowCount+1 à 2×rowCount)
+         grp 2 → VHF colonne gauche
+         grp 3 → VHF colonne droite                                    */
+    for (let grp = 0; grp < 4; grp++) {
+      const isUHF    = grp < 2;
+      const channels = isUHF ? uhfAll : vhfAll;
+
+      /* offset = 0 pour la colonne gauche, rowCount pour la droite */
+      const offset    = (grp % 2 === 0) ? 0 : rowCount;
+      const presetIdx = offset + row;          // indice dans channels[]
+      const presetNum = presetIdx + 1;         // numéro affiché (1-based)
+
+      /* Séparateur fort en fin de bloc UHF-col1 et VHF-col1 */
+      const borderRightDesc = (grp === 0 || grp === 2)
+        ? '1.5px solid #8a9abc'
+        : '.5px solid #c0bdb5';
+
+      /* ── Cellule N° ── */
+      const tdN = document.createElement('div');
+      tdN.style.cssText = `background:${bg};font-size:8px;font-weight:700;color:#555;
+        text-align:center;padding:1px 0;border-right:.5px solid #e0e0e0;min-height:13px;
+        display:flex;align-items:center;justify-content:center`;
+      /* Toujours afficher le numéro, même si la case est vide */
+      tdN.textContent = String(presetNum);
+
+      /* ── Cellule Fréquence (input éditable) ── */
+      const tdF = document.createElement('div');
+      tdF.style.cssText = `background:${bg};font-size:8px;font-family:'Share Tech Mono',monospace;
+        text-align:center;padding:1px;border-right:.5px solid #e0e0e0;
+        display:flex;align-items:center;justify-content:center`;
+
+      const inp = document.createElement('span');
+      inp.contentEditable = 'true';
+      inp.style.cssText = 'display:block;width:100%;font-family:inherit;font-size:inherit;text-align:center;color:#0d1e3e;padding:0;outline:none;white-space:nowrap;overflow:hidden';
+      inp.textContent = channels[presetIdx] != null ? channels[presetIdx] : '';
+      tdF.appendChild(inp);
+
+      /* ── Cellule Description (contenteditable) ── */
+      const tdD = document.createElement('div');
+      tdD.contentEditable = 'true';
+      tdD.style.cssText = `background:${bg};font-size:8px;padding:1px 2px;
+        border-right:${borderRightDesc};min-height:13px;color:#333;
+        display:flex;align-items:center;overflow:hidden`;
+      /* textContent vide → pas d'injection possible */
+      tdD.textContent = '';
+
+      dataRow.append(tdN, tdF, tdD);
+    }
+
+    bodyDiv.appendChild(dataRow);
+  }
+
+  wrapper.append(hdrRow, colHdrRow, bodyDiv);
+  return wrapper;
+}
+
+function mkDatacardPage2(g, idx) {
+  const page = document.createElement('div'); page.className = 'kb-page';
+
+  /* En-tête */
+  const hdr = document.createElement('div'); hdr.className = 'kb-mhdr';
+  const ht  = document.createElement('span'); ht.className = 'kb-mhdr-t';
+  ht.textContent = `Datacard #${idx+1} — Navigation & Map`;
+  const btn = document.createElement('button');
+  btn.className = 'kb-img-btn';
+  btn.type = 'button';
+  btn.textContent = '🖼 Image';
+  btn.title = 'Insérer une image pour la carte de ce vol';
+  /* Utiliser safeId pour éviter les problèmes avec les noms spéciaux */
+  const mapKey = safeId(g.name);
+  btn.onclick = () => selectImage(`map:${mapKey}`);
+  const btnClearMap = document.createElement('button');
+  btnClearMap.className = 'kb-img-btn no-print';
+  btnClearMap.type = 'button';
+  btnClearMap.textContent = '✕ Clear';
+  btnClearMap.title = 'Effacer l\'image de la carte';
+  btnClearMap.onclick = () => { delete groupMapImages[mapKey]; renderPreview(); };
+  const right = document.createElement('div');
+  right.style.display = 'flex'; right.style.alignItems = 'center'; right.style.gap = '4px';
+  const hr = document.createElement('span'); hr.className = 'kb-mhdr-r';
+  hr.textContent = `${g.callsign.toUpperCase()}`;
+  right.append(hr, btn, btnClearMap);
+  hdr.append(ht, right);
+
+  /* Steerpoints */
+  const shdWP  = mkShdr('Steerpoints');
+  const wpTbl  = makeWPTable(g);
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'no-print';
+  addBtn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin:2px 0 2px 2px;padding:2px 8px;background:rgba(61,220,132,.1);color:#3ddc84;border:1px solid rgba(61,220,132,.25);border-radius:2px;font-family:var(--mono);font-size:9.5px;cursor:pointer';
+  addBtn.textContent = '+ Ajouter waypoint';
+  addBtn.onclick = () => {
+    if (!groupWPs[g.name]) groupWPs[g.name] = [];
+    const n = groupWPs[g.name].length + 1;
+    groupWPs[g.name].push({ desc:'WP '+n, hdg:'', dist:'', speed:'', alt:'', eta:'', tos:'', note:'', coord:'' });
+    renderPreview();
+  };
+
+  /* Bloc Carte / Map avec image */
+  const shdMap = mkShdr('Carte / Map');
+  const mapBlock = document.createElement('div');
+  mapBlock.style.cssText = 'flex:1;border:.5px solid #c0bdb5;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:10px;color:#444;background:#f4f1eb;overflow:auto;min-height:120px';
+  
+  const mapImage = groupMapImages[safeId(g.name)];
+  if (mapImage) {
+    const img = document.createElement('img');
+    img.src = mapImage;
+    img.alt = 'Carte de mission';
+    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;display:block;margin:auto';
+    mapBlock.appendChild(img);
+  } else {
+    const mapPlaceholder = document.createElement('div');
+    mapPlaceholder.style.cssText = 'color:#666;text-align:center;line-height:1.4;white-space:pre-wrap;padding:8px;';
+    mapPlaceholder.textContent = 'Zone carte / map remplissable : importer une image via le bouton Image en haut de la page.';
+    mapBlock.appendChild(mapPlaceholder);
+  }
+
+  page.append(hdr, shdWP, wpTbl, addBtn, shdMap, mapBlock);
+  return page;
+}
+
+/* ─ Tableau waypoints avec sélecteurs d'unités ─ */
+function makeWPTable(g) {
+  const wps  = groupWPs[g.name] || [];
+  const rows = Math.max(wps.length, 10);
+  const pref = groupUnitPrefs[g.name] || (groupUnitPrefs[g.name] = { dist:'nm', spalt:'ktft' });
+
+  /* ── Wrapper: sélecteurs d'unités au-dessus du tableau ── */
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'display:flex;flex-direction:column;gap:1px';
+
+  /* Barre de sélecteurs (no-print) */
+  const ctrlBar = document.createElement('div');
+  ctrlBar.className = 'no-print';
+  ctrlBar.style.cssText = 'display:flex;gap:6px;align-items:center;padding:1px 2px;font-size:9px;color:#555;background:#f0ede6;border:.5px solid #c0bdb5;border-bottom:none';
+
+  function mkSel(label, opts, current, onChange) {
+    const wrap = document.createElement('span'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='2px';
+    const lbl = document.createElement('span'); lbl.textContent = label; lbl.style.fontWeight='700';
+    const sel = document.createElement('select');
+    sel.style.cssText = 'font-size:8px;border:1px solid #c0bdb5;border-radius:2px;background:#fff;padding:0 2px;cursor:pointer';
+    opts.forEach(([val, txt]) => { const o = document.createElement('option'); o.value=val; o.textContent=txt; if(val===current) o.selected=true; sel.appendChild(o); });
+    sel.addEventListener('change', () => { onChange(sel.value); rebuildWPTable(); });
+    wrap.append(lbl, sel);
+    return wrap;
+  }
+
+  /* Bouton toggle unique : kts/ft/nm ↔ km/h/m/km */
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  const isImperial = () => pref.dist === 'nm' && pref.spalt === 'ktft';
+  const updateToggleLabel = () => { toggleBtn.textContent = isImperial() ? '⇄ kts/ft/nm' : '⇄ km/h·m·km'; };
+  toggleBtn.style.cssText = 'font-size:8px;border:1px solid #c0bdb5;border-radius:2px;background:#fff;padding:1px 4px;cursor:pointer;font-weight:700';
+  updateToggleLabel();
+  toggleBtn.addEventListener('click', () => {
+    if (isImperial()) { pref.dist = 'km'; pref.spalt = 'kmhm'; }
+    else              { pref.dist = 'nm'; pref.spalt = 'ktft'; }
+    updateToggleLabel();
+    rebuildWPTable();
+  });
+  ctrlBar.appendChild(toggleBtn);
+
+  /* Fonction de rebuild (remplace le tableau dans le wrapper) */
+  function rebuildWPTable() {
+    const old = wrapper.querySelector('table');
+    if (old) wrapper.removeChild(old);
+    wrapper.appendChild(buildTable());
+  }
+
+  function buildTable() {
+    const distLabel  = pref.dist  === 'nm'   ? 'Dist(nm)' : 'Dist(km)';
+    const spaltLabel = pref.spalt === 'ktft' ? 'kt/ft'    : 'km/h·m';
+
+    const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
+    tbl.style.cssText = 'font-size:9px';
+    tbl.dataset.wpGroup = g.name;
+    const thead = tbl.createTHead();
+    const hr = thead.insertRow();
+    [
+      { t:'WP',       w:'16px', a:'center' },
+      { t:'Desc.',    w:'50px'             },
+      { t:'Task',     w:'60px'             },
+      { t:'Coord.',   w:'80px'             },
+      { t:'HDG',      w:'24px', a:'center' },
+      { t:distLabel,  w:'32px', a:'right'  },
+      { t:spaltLabel, w:'50px', a:'right'  },
+      { t:'ETA',      w:'32px', a:'center' },
+      { t:'TOS',      w:'22px', a:'center' },
+      { t:'',         w:'12px'             },
+    ].forEach(col => {
+      const th = document.createElement('th'); th.textContent = col.t;
+      if (col.w) th.style.width = col.w;
+      if (col.a) th.style.textAlign = col.a;
+      hr.appendChild(th);
+    });
+
+    /* ── Calcul cumulatif ETA ──────────────────────────────────────────
+       eta_sec = secondes absolues brutes du WP (depuis le fichier mission)
+       toSec   = heure T/O saisie par l'utilisateur (secondes absolues)
+       WP1 ETA = toSec
+       WP[N] ETA = toSec + (eta_sec[N] - eta_sec[0])
+       Sans T/O : afficher delta brut +HH:MM
+    ──────────────────────────────────────────────────────────────────── */
+    const toEl    = document.querySelector(`[data-to-group="${CSS.escape(g.name)}"]`);
+    const toRaw   = (toEl && toEl.textContent.trim()) ? toEl.textContent.trim() : '';
+    /* Convertir HH:MM ou HH:MM:SS en secondes absolues */
+    const toSec   = parseTimeToSeconds(toRaw);
+    /* Secondes absolues du WP1 (ancre pour le calcul des legs) */
+    const eta0    = wps[0] ? (wps[0].eta_sec || 0) : 0;
+
+    const tbody = tbl.createTBody();
+    for (let i = 0; i < rows; i++) {
+      if (wps[i]) {
+        const wp = Object.assign({}, wps[i]);
+        const distNm = wp.distNm || parseFloat(wp.dist) || 0;
+        wp.dist  = pref.dist  === 'km'  ? (distNm * 1.852).toFixed(1) : distNm.toFixed(1);
+        wp.speed = pref.spalt === 'kmhm'? (wp.speedKmh || 0) : (wp.speed || 0);
+        wp.alt   = pref.spalt === 'kmhm'? (wp.altM || 0)     : (wp.alt   || 0);
+
+        const eta_s = wp.eta_sec || 0;
+        if (toSec !== null) {
+          /* Offset du WP par rapport au WP1 en secondes */
+          const offset = Math.max(0, eta_s - eta0);
+          wp.etaDisplay = secsAbsToHHMM(toSec + offset);
+        } else {
+          /* Pas de T/O saisi : delta brut +HH:MM */
+          wp.etaDisplay = wp.eta
+            ? wp.eta.replace(/^\+/, '').split(':').slice(0,2).join(':')
+            : '';
+        }
+        tbody.appendChild(makeWpRow(wp, i, g.name));
+      } else {
+        const tr = tbody.insertRow();
+        for (let j = 0; j < 10; j++) { const td = tr.insertCell(); td.contentEditable = 'true'; }
+      }
+    }
+    return tbl;
+  }
+
+  let currentTable = buildTable();
+  wrapper.append(ctrlBar, currentTable);
+
+  wrapper.addEventListener('refresh-eta', () => {
+    const toEl2   = document.querySelector(`[data-to-group="${CSS.escape(g.name)}"]`);
+    const toRaw2  = (toEl2 && toEl2.textContent.trim()) ? toEl2.textContent.trim() : '';
+    const toSec2  = parseTimeToSeconds(toRaw2);
+    const eta0_2  = wps[0] ? (wps[0].eta_sec || 0) : 0;
+
+    const tbody2  = wrapper.querySelector('table tbody');
+    if (!tbody2) return;
+
+    Array.from(tbody2.rows).forEach((tr, i) => {
+      if (i >= wps.length) return;
+      const wp2  = wps[i];
+      if (!wp2)  return;
+      const etaTd = tr.cells[7];
+      if (!etaTd) return;
+      if (etaTd.dataset.manual === '1') return; /* préserver les valeurs manuelles */
+
+      let display = '';
+      if (toSec2 !== null) {
+        const offset2 = Math.max(0, (wp2.eta_sec || 0) - eta0_2);
+        display = secsAbsToHHMM(toSec2 + offset2);
+      } else {
+        display = wp2.eta ? wp2.eta.replace(/^\+/, '').split(':').slice(0,2).join(':') : '';
+      }
+      etaTd.textContent = display;
+      etaTd.dataset.etaCalc = display;
+    });
+  });
+
+  return wrapper;
+}
+
+/* ─ Tableau membres ─ */
+function makeMembersTable(g) {
+  const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
+  tbl.style.cssText = 'border:.5px solid #c0bdb5';
+  const thead = tbl.createTHead();
+  const hr = thead.insertRow();
+  ['Members','#1','#2','#3','#4'].forEach((h, i) => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    th.style.cssText = 'background:#f3f3f3;color:#000;' + (i===0?'width:18%':i<4?'width:20%':'width:22%');
+    hr.appendChild(th);
+  });
+  const tbody = tbl.createTBody();
+  [
+    { label:'Callsign', key:'callsign' },
+    { label:'Tacan',    key:'tacan'    },
+    { label:'DL / LSR', key:'dl'       },
+    { label:'A/C n°',   key:'acNum'    }
+  ].forEach(row => {
+    const tr = tbody.insertRow();
+    const lbl = tr.insertCell(); lbl.style.cssText = 'font-weight:700;font-size:10px'; lbl.textContent = row.label;
+    for (let i = 0; i < 4; i++) {
+      const td = tr.insertCell(); td.contentEditable = 'true';
+      td.textContent = (g.members && g.members[i]) ? (g.members[i][row.key] || '') : '';
+    }
+  });
+  return tbl;
+}
+
+/* ─ Tableau airbases ─ */
+function makeAirbaseTable(g) {
+  const theatreAFs = getTheatreAirfields();
+  const dlId = 'af-dl-' + safeId(g.name);
+  const dl = document.createElement('datalist'); dl.id = dlId;
+  theatreAFs.forEach(af => { const opt = document.createElement('option'); opt.value = af.name; dl.appendChild(opt); });
+
+  const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
+  tbl.style.cssText = 'font-size:10px;border:.5px solid #c0bdb5';
+
+  /* On insère le datalist dans le tableau (workaround : dans tbody) */
+  const thead = tbl.createTHead();
+  const hr = thead.insertRow();
+  ['','Nom','UHF','VHF','RWY','ILS','TCN'].forEach((h, i) => {
+    const th = document.createElement('th'); th.textContent = h;
+    const widths = ['25px','22%','11%','11%','9%','9%','9%'];
+    th.style.width = widths[i] || '';
+    if (i > 1) th.style.textAlign = 'center';
+    hr.appendChild(th);
+  });
+  const tbody = tbl.createTBody();
+
+  const makeAfRow = (label, af) => {
+    const tr = document.createElement('tr');
+    const tdLbl = document.createElement('td');
+    tdLbl.style.cssText = 'font-size:9px;font-weight:700;color:#555;white-space:nowrap';
+    tdLbl.textContent = label;
+
+    const tdName = document.createElement('td');
+    tdName.style.cssText = 'width:22%;text-align:left;padding-left:4px';
+    const inp = document.createElement('input');
+    inp.className = 'af-input';
+    inp.setAttribute('list', dlId);
+    inp.value = af ? af.name : '';
+    inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:10px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:left';
+    inp.addEventListener('input', () => fillAirbaseRow(inp, g.name, label));
+    tdName.appendChild(inp);
+
+    const tdUhf = document.createElement('td'); tdUhf.contentEditable = 'true'; tdUhf.style.textAlign = 'center';
+    tdUhf.textContent = af ? (af.uhf !== 'n/a' ? af.uhf : '') : '';
+    const tdVhf = document.createElement('td'); tdVhf.contentEditable = 'true'; tdVhf.style.textAlign = 'center';
+    tdVhf.textContent = af ? (af.vhf !== 'n/a' ? af.vhf : '') : '';
+    const tdRwy = document.createElement('td'); tdRwy.contentEditable = 'true'; tdRwy.style.textAlign = 'center';
+    tdRwy.textContent = af ? (af.rwy || '') : '';
+    const tdIls = document.createElement('td'); tdIls.contentEditable = 'true'; tdIls.style.textAlign = 'center';
+    tdIls.textContent = af ? (af.ils !== 'n/a' ? af.ils : '') : '';
+    const tdTcn = document.createElement('td'); tdTcn.contentEditable = 'true'; tdTcn.style.textAlign = 'center';
+    tdTcn.textContent = af ? (af.tacan !== 'n/a' ? af.tacan : '') : '';
+
+    tr.append(tdLbl, tdName, tdUhf, tdVhf, tdRwy, tdIls, tdTcn);
+    return tr;
+  };
+
+  tbody.appendChild(document.createElement('tr')).appendChild(dl); /* datalist dans une cellule cachée */
+  tbody.lastChild.style.display = 'none';
+  tbody.appendChild(makeAfRow('T/O', g.airdrome));
+  tbody.appendChild(makeAfRow('ALT', null));
+  tbody.appendChild(makeAfRow('DIV', null));
+  return tbl;
+}
+
+/* ─ Comm ladder (UHF + VHF côte-à-côte) ─ */
+function makeCommLadder(g) {
+  const grid = document.createElement('div'); grid.className = 'kb-grid2';
+  grid.style.cssText = 'border:.5px solid #c0bdb5';
+
+  const makeRadioBlock = (label, channels) => {
+    const wrap = document.createElement('div');
+    const hdr  = document.createElement('div'); hdr.className = 'kb-mhdr2'; hdr.textContent = label;
+    const tbl  = document.createElement('table'); tbl.className = 'kb-tbl'; tbl.style.fontSize = '9px';
+    const thead = tbl.createTHead(); const hr = thead.insertRow();
+    ['N°','Fréq.'].forEach((h, i) => {
+      const th = document.createElement('th'); th.textContent = h;
+      th.style.width = i === 0 ? '18px' : '80px';
+      hr.appendChild(th);
+    });
+
+    const tbody = tbl.createTBody();
+    const list = (channels || []).slice(0, 20).map(f => window.formatFreq(f));
+    for (let row = 0; row < 10; row++) {
+      const tr = tbody.insertRow();
+      const tdN = tr.insertCell(); tdN.textContent = String(row + 1);
+      const tdF = tr.insertCell(); tdF.contentEditable = 'true';
+      tdF.style.fontFamily = "'Share Tech Mono',monospace";
+      tdF.textContent = list[row] || '';
+    }
+
+    wrap.append(hdr, tbl);
+    return wrap;
+  };
+
+  // Deux colonnes UHF, deux colonnes VHF
+  const blocks = [];
+  const uhf = (g.channelsUHF || []).slice(0, 20).map(f => window.formatFreq(f));
+  const vhf = (g.channelsVHF || []).slice(0, 20).map(f => window.formatFreq(f));
+  const split = entries => {
+    const half = Math.ceil(entries.length / 2);
+    return [entries.slice(0, half), entries.slice(half, 20)];
+  };
+  const [uhfA, uhfB] = split(uhf);
+  const [vhfA, vhfB] = split(vhf);
+  blocks.push(makeRadioBlock('UHF 1', uhfA));
+  blocks.push(makeRadioBlock('UHF 2', uhfB));
+  blocks.push(makeRadioBlock('VHF 1', vhfA));
+  blocks.push(makeRadioBlock('VHF 2', vhfB));
+
+  blocks.forEach(b => grid.appendChild(b));
+  return grid;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SYNCHRONISATION AIRFIELDS (BRIEFING ↔ DATACARD)
+   ════════════════════════════════════════════════════════════════ */
+
+function getTheatreAirfields() {
+  if (typeof AIRFIELDS === 'undefined' || !miz || !AIRFIELDS[miz.theatre]) return [];
+  return Object.values(AIRFIELDS[miz.theatre]);
+}
+
+function findAirfield(name) {
+  const afs = getTheatreAirfields();
+  const lc  = name.trim().toLowerCase();
+  return afs.find(a => a.name.toLowerCase() === lc) || null;
+}
+
+/**
+ * Quand l'utilisateur modifie l'airfield dans le briefing,
+ * met à jour les colonnes UHF/VHF correspondantes.
+ */
+function syncAirfieldFromBrief(input, gname) {
+  const af    = findAirfield(input.value);
+  const afId  = 'brief-af-' + safeId(gname);
+  const uhfEl = document.getElementById(afId + '-uhf');
+  const vhfEl = document.getElementById(afId + '-vhf');
+  if (uhfEl) uhfEl.textContent = af ? (af.uhf !== 'n/a' ? af.uhf : '—') : '';
+  if (vhfEl) vhfEl.textContent = af ? (af.vhf !== 'n/a' ? af.vhf : '—') : '';
+}
+
+/**
+ * Quand l'utilisateur modifie l'airfield dans une datacard,
+ * remplit les colonnes fréquences/ILS/TACAN de la même ligne.
+ * Si c'est la ligne T/O, propage aussi vers le briefing.
+ */
+function fillAirbaseRow(input, gname, label) {
+  const af = findAirfield(input.value);
+  if (!af) return;
+
+  const row  = input.closest('tr');
+  if (!row) return;
+  const tds  = row.querySelectorAll('td[contenteditable]');
+  if (tds[0]) tds[0].textContent = af.uhf  !== 'n/a' ? af.uhf  : '';
+  if (tds[1]) tds[1].textContent = af.vhf  !== 'n/a' ? af.vhf  : '';
+  if (tds[2]) tds[2].textContent = af.rwy  || '';
+  if (tds[3]) tds[3].textContent = af.ils  !== 'n/a' ? af.ils  : '';
+  if (tds[4]) tds[4].textContent = af.tacan !== 'n/a' ? af.tacan : '';
+
+  if (label === 'T/O' && gname) {
+    const afId     = 'brief-af-' + safeId(gname);
+    const briefInp = document.getElementById(afId);
+    if (briefInp) {
+      briefInp.value = af.name;
+      const uhfEl = document.getElementById(afId + '-uhf');
+      const vhfEl = document.getElementById(afId + '-vhf');
+      if (uhfEl) uhfEl.textContent = af.uhf  !== 'n/a' ? af.uhf  : '—';
+      if (vhfEl) vhfEl.textContent = af.vhf  !== 'n/a' ? af.vhf  : '—';
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CONSTRUCTEURS D'EN-TÊTES (helpers DOM)
+   ════════════════════════════════════════════════════════════════ */
+
+function mkShdr(text) {
+  const d = document.createElement('div'); d.className = 'kb-shdr'; d.textContent = text; return d;
+}
+function mkMhdr2(text) {
+  const d = document.createElement('div'); d.className = 'kb-mhdr2'; d.textContent = text; return d;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EXPORT PDF (html2canvas + jsPDF)
+   ════════════════════════════════════════════════════════════════ */
+
+async function genPDF() {
+  setStatus('Génération PDF en cours...', 10);
+  document.getElementById('btn-pdf').disabled = true;
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc   = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const pages = [...document.querySelectorAll('.kb-page')];
+    const A4W = 210, A4H = 297;
+
+    for (let i = 0; i < pages.length; i++) {
+      setStatus(`Capture page ${i+1}/${pages.length}...`, 10 + Math.floor(i/pages.length * 80));
+      if (i > 0) doc.addPage('a4', 'portrait');
+
+      let canvas;
+      try {
+        canvas = await html2canvas(pages[i], {
+          scale:       2,
+          useCORS:     true,
+          backgroundColor: '#ffffff',
+          width:       794,
+          height:      1123,
+          windowWidth: 794,
+          logging:     false
+        });
+      } catch (err) {
+        console.warn('html2canvas high-resolution capture failed, retrying with lower scale', err);
+        canvas = await html2canvas(pages[i], {
+          scale:       1.5,
+          useCORS:     true,
+          backgroundColor: '#ffffff',
+          width:       794,
+          height:      1123,
+          windowWidth: 794,
+          logging:     false
+        });
+      }
+
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, A4W, A4H);
+    }
+
+    if (typeof doc.deleteHighlight === 'function') {
+      doc.deleteHighlight();
+    }
+
+    const nom = (fd.nom || 'kneeboard').replace(/[^a-zA-Z0-9_-]/g, '_');
+    doc.save(`${nom}_kneeboard.pdf`);
+    setStatus(`PDF téléchargé : ${nom}_kneeboard.pdf`, 100);
+  } catch (e) {
+    setStatus('Erreur PDF : ' + e.message, 0);
+    console.error(e);
+  }
+  document.getElementById('btn-pdf').disabled = false;
+}
+
+async function genImages() {
+  setStatus('Génération JPG en cours...', 10);
+  const pages = [...document.querySelectorAll('.kb-page')];
+  const nom = (fd.nom || 'kneeboard').replace(/[^a-zA-Z0-9_-]/g, '_');
+  try {
+    for (let i = 0; i < pages.length; i++) {
+      setStatus(`Capture image ${i+1}/${pages.length}...`, 10 + Math.floor(i / pages.length * 80));
+      const canvas = await html2canvas(pages[i], {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: 794, height: 1123, windowWidth: 794,
+        logging: false
+      });
+      const url = canvas.toDataURL('image/jpeg', 0.95);
+      const a = document.createElement('a');
+      a.href = url;
+      /* Nommage : nom_mission_PAGE_01.jpg, _PAGE_02.jpg … */
+      a.download = `${nom}_PAGE_${String(i+1).padStart(2,'0')}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      /* Petit délai pour éviter le blocage navigateur sur téléchargements multiples */
+      await new Promise(r => setTimeout(r, 150));
+    }
+    setStatus(`${pages.length} image(s) JPG téléchargée(s)`, 100);
+  } catch (e) {
+    setStatus('Erreur JPG : ' + e.message, 0);
+    console.error(e);
+  }
+}
+/* ════════════════════════════════════════════════════════════════
+   EXPORT HTML (snapshot statique)
+   ════════════════════════════════════════════════════════════════ */
+
+function genHTML() {
+  /* Sérialisation sûre : on clone le nœud et on désactive les interactions */
+  const kbPagesEl = document.getElementById('kbpages');
+  if (!kbPagesEl) {
+    setStatus("Erreur : élément #kbpages introuvable", 0);
+    return;
+  }
+
+  const clone = kbPagesEl.cloneNode(true);
+  clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+  clone.querySelectorAll('.row-add, .row-del, .no-print').forEach(el => el.remove());
+
+  const styleEl = document.querySelector('style');
+  const css     = styleEl ? styleEl.textContent : '';
+
+  const additionalCSS = `
+    body { background: #1c1e26; padding: 20px; overflow: auto; }
+    .app  { display: block; height: auto; }
+    .left, .r-bar { display: none !important; }
+    .right  { overflow: visible; background: transparent; }
+    .r-scroll { padding: 0; background: transparent; overflow: visible; }
+    .kb-wrap  { justify-content: center; margin-bottom: 20px; }
+  `;
+
+  const fullCSS = css + additionalCSS;
+
+  // Utilisation des backticks pour éviter les erreurs d'interprétation CSS de l'IDE
+  const htmlContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Export Kneeboard — ${esc(fd.nom || 'Mission')}</title>
+  <style>
+    ${fullCSS}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="right">
+      <div class="r-scroll">
+        ${clone.outerHTML}
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (fd.nom || 'kneeboard').replace(/[^a-zA-Z0-9_-]/g, '_') + '_export.html';
+  
+  // Simulation du clic
+  document.body.appendChild(a); 
+  a.click();
+  document.body.removeChild(a);
+
+  /* Libération de la mémoire */
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  setStatus('Export HTML terminé', 100);
+}
+</script>
+</body>
+</html>
