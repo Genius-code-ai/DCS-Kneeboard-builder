@@ -411,7 +411,7 @@
 
     .kb-pair {
       display: flex; flex-direction: column; gap: 4px;
-      min-height: 200px; height: 220px;
+      min-height: 220px; height: 240px;
       overflow: hidden;
     }
     .kb-pair > .kb-c {
@@ -1129,6 +1129,7 @@ function renderPreview() {
           alt:      wp.alt      || 0,          /* ft brut */
           altM:     wp.altM     || 0,          /* m brut */
           eta:      wp.eta      || '',
+          eta_sec:  wp.eta_sec != null ? wp.eta_sec : null,
           tos:      '',
           note:     wp.note     || '',
           coord:    String(window.xy2dmm(wp.x, wp.y, miz.theatre))
@@ -1382,8 +1383,8 @@ function mkBriefPage1(pkg, sup) {
   const objSec  = makeCell('Objectifs secondaires', fd.obj2);
   const objPair = document.createElement('div');
   objPair.className = 'kb-pair';
-  objPair.style.minHeight = '220px';
-  objPair.style.height = '220px';
+  objPair.style.minHeight = '240px';
+  objPair.style.height = '240px';
   objPair.append(objMain, objSec);
 
   const shdExec = mkShdr('EXECUTION DE LA MISSION / MISSION EXECUTION');
@@ -1394,9 +1395,9 @@ function mkBriefPage1(pkg, sup) {
   const roeBloc  = makeCell('R.O.E.', fd.roe);
   roeBloc.querySelector('.kb-cv').style.whiteSpace = 'normal';
   roeBloc.style.flex = '0';
-  roeBloc.style.height = '42px';
-  roeBloc.style.minHeight = '42px';
-  roeBloc.style.maxHeight = '42px';
+  roeBloc.style.height = '60px';
+  roeBloc.style.minHeight = '60px';
+  roeBloc.style.maxHeight = '60px';
   roeBloc.style.overflow = 'hidden';
   const shdNav = mkShdr('FACTEUR DE NAVIGATION / ROUTING FACTOR');
   const navRow = document.createElement('div'); navRow.className = 'kb-grid5';
@@ -1422,8 +1423,8 @@ function mkBriefPage1(pkg, sup) {
   const intelArm = makeCell('Limitation armement', fd.armt);
   const intelPair = document.createElement('div');
   intelPair.className = 'kb-pair';
-  intelPair.style.minHeight = '200px';
-  intelPair.style.height = '200px';
+  intelPair.style.minHeight = '240px';
+  intelPair.style.height = '240px';
   intelPair.append(intelSam, intelAir);
   /* intelSam/intelAir gardent pre-wrap pour l'affichage multilignes */
   [intelArm].forEach(c => c.querySelector('.kb-cv').style.whiteSpace = 'normal');
@@ -1949,7 +1950,7 @@ function mkDatacardPage2(g, idx) {
   /* Bloc Carte / Map avec image */
   const shdMap = mkShdr('Carte / Map');
   const mapBlock = document.createElement('div');
-  mapBlock.style.cssText = 'flex:1;border:.5px solid #c0bdb5;padding:8px;display:flex;flex-direction:column;gap:8px;font-size:11px;color:#0d1e3e;font-family:"Barlow Condensed",sans-serif;font-weight:600;line-height:1.5;background:#f4f1eb;overflow:auto;min-height:120px';
+  mapBlock.style.cssText = 'flex:1;border:.5px solid #c0bdb5;padding:8px;display:flex;flex-direction:column;gap:8px;font-size:11px;color:#0d1e3e;font-family:"Barlow Condensed",sans-serif;font-weight:600;line-height:1.5;background:#f4f1eb;overflow:auto;min-height:180px';
   mapBlock.contentEditable = 'true';
 
   const mapKey2 = safeId(g.name);
@@ -2110,7 +2111,6 @@ function makeWPTable(g) {
   wrapper.append(ctrlBar, currentTable);
 
   wrapper.addEventListener('refresh-eta', () => {
-    console.log('ETA DEBUG', wps.map(w => w.eta_sec)); // ligne de debug pour vérifier les eta_sec bruts des WPs
     const toEl2   = document.querySelector(`[data-to-group="${CSS.escape(g.name)}"]`);
     const toRaw2  = (toEl2 && toEl2.textContent.trim())
                       ? toEl2.textContent.trim()

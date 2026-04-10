@@ -207,11 +207,35 @@ function parseTankerOrbit(groupContent, theatre) {
 
   /* Chercher un WP avec action Orbit dans la route */
   const routeM = groupContent.match(/\["route"\]\s*=\s*\{([\s\S]*?)\n\s*\},\s*--\s*end of \["route"\]/);
-  const routeContent = routeM ? routeM[1] : '';
+  let routeContent = routeM ? routeM[1] : '';
   if (routeContent) {
-    const chunks = routeContent.split(/\n[ \t]*\[\d+\]\s*=\s*\{/);
+    /* Identifier les WP contenant Orbit AVANT neutralisation des blocs task */
+    const orbitTaskIndices = new Set();
+    let searchPos = 0;
+    while (true) {
+      const ts = routeContent.indexOf('["task"] =', searchPos);
+      if (ts === -1) break;
+      const te = routeContent.indexOf('end of ["task"]', ts);
+      if (te === -1) break;
+      const taskBlock = routeContent.substring(ts, te + 15);
+      if (/Orbit|Tanking|Refueling/i.test(taskBlock)) {
+        orbitTaskIndices.add(ts);
+      }
+      searchPos = te + 15;
+    }
+
+    /* Neutraliser les blocs ["task"] pour eviter les faux splits */
+    const rc = routeContent.replace(
+      /\["task"\]\s*=[\s\S]*?end of \["task"\]/g,
+      (match, offset) => {
+        const marker = orbitTaskIndices.has(offset) ? '["_orbit_marker_"] = true' : '["_task_ref_"] = {}';
+        return marker;
+      }
+    );
+
+    const chunks = rc.split(/\n[ \t]*\[\d+\]\s*=\s*\{/);
     for (const chunk of chunks) {
-      if (!/Orbit|orbit|Tanking|Refueling/i.test(chunk)) continue;
+      if (!/_orbit_marker_/.test(chunk)) continue;
       const xM = chunk.match(/\["x"\]\s*=\s*([-\d.]+)/);
       const yM = chunk.match(/\["y"\]\s*=\s*([-\d.]+)/);
       if (xM && yM) {
@@ -263,11 +287,6 @@ function parseGroupWaypoints(groupContent, startTime, task, theatre) {
     const xM   = chunk.match(/\["x"\]\s*=\s*([-\d.]+)/);
     const yM   = chunk.match(/\["y"\]\s*=\s*([-\d.]+)/);
     const etaM = chunk.match(/\["ETA"\]\s*=\s*([0-9.+-eE]+)/);
-    if (etaM) {
-    console.log('ETA FOUND', etaM[1]);
-  } else {
-    console.log('ETA MISSING IN CHUNK', chunk);
-  }
     if (!(xM && yM)) continue;
 
     const actionM = chunk.match(/\["action"\]\s*=\s*"([^"]+)"/);
@@ -311,7 +330,7 @@ function parseGroupWaypoints(groupContent, startTime, task, theatre) {
       eta: delta,          /* delta depuis start_time, format +HH:MM:SS */
       eta_sec: eta !== null ? eta : null,       /* secondes absolues brutes du fichier mission */
       etaAbs: eta !== null ? window.secsToTime(eta) : '',
-      tos: '', etaAbs: window.secsToTime(eta), type: action,
+      tos: '', type: action,
     });
     wpIdx++;
   }
@@ -628,7 +647,8 @@ window.parseMiz = function (content, theatre, dictionary = {}) {
                || ub.match(/\["callsign"\]\s*=\s*(\d+)/);
       const finalCs = (csM && csM[1]) ? translate(csM[1]) : uname.split('_').pop() || '';
       const dlM = ub.match(/\["STN_L16"\]\s*=\s*"?([0-9A-Z]+)"?/);
-      members.push({ callsign: finalCs, tacan:'', dl: dlM ? dlM[1] : '' });
+      const acNumM = ub.match(/\["onboard_num"\]\s*=\s*"([^"]+)"/);
+      members.push({ callsign: finalCs, tacan:'', dl: dlM ? dlM[1] : '', acNum: acNumM ? acNumM[1] : '' });
     });
 
     /* Callsign de groupe = premier membre (v7) */
