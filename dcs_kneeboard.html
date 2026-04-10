@@ -550,6 +550,14 @@
               </select>
             </div>
           </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;margin-top:4px">
+            <input type="checkbox" id="chk-player-only" onchange="renderGroups()"
+              style="cursor:pointer;accent-color:var(--accent)">
+            <label for="chk-player-only"
+              style="font-size:9.5px;color:var(--text2);font-family:var(--mono);cursor:pointer;user-select:none">
+              Players / Clients seulement
+            </label>
+          </div>
           <div style="font-size:9px;color:var(--text2);font-family:var(--mono);margin-bottom:6px">
             EXÉCUTION — cliquer pour sélectionner
           </div>
@@ -578,7 +586,6 @@
       <div class="spacer"></div>
       <div class="page-dots" id="pdots"></div>
       <div class="spacer"></div>
-      <button class="btn btn-sec btn-sm" onclick="selectImage()">🖼 Image</button>
       <button class="btn btn-sec btn-sm" onclick="genImages()">🖼 JPG</button>
       <button class="btn btn-sec btn-sm" onclick="genHTML()">🌐 HTML</button>
       <button class="btn btn-sec btn-sm" onclick="window.print()">🖨 Imprimer</button>
@@ -599,7 +606,7 @@
 <!-- Données terrains (fichier externe) -->
 <script src="dcs_airfields.js"></script>
 <!-- Ajout du parser externe -->
-<script src="miz_parser_copilot.js"></script>
+<script src="miz_parser.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════════════
    ÉTAT GLOBAL
@@ -610,7 +617,9 @@ const selSup = new Set();
 let uhfComms = [];
 let vhfComms = [];
 let briefingImage = null;
+let briefingText = '';         /* texte saisi dans la zone briefing page2 */
 const groupMapImages = {};
+const groupMapText = {};       /* texte saisi dans les zones carte datacard */
 let currentImageTarget = 'briefing';
 
 /**
@@ -732,6 +741,8 @@ async function loadMiz(file) {
     Object.keys(groupWPs).forEach(k => delete groupWPs[k]);
     Object.keys(groupLoadout).forEach(k => delete groupLoadout[k]);
     Object.keys(groupUnitPrefs).forEach(k => delete groupUnitPrefs[k]);
+    Object.keys(groupMapText).forEach(k => delete groupMapText[k]);
+    briefingText = ''; briefingImage = null;
 
     document.getElementById('file-ok').style.display = 'flex';
     document.getElementById('file-name').textContent = file.name;
@@ -799,6 +810,8 @@ function resetApp() {
   Object.keys(groupWPs).forEach(k => delete groupWPs[k]);
   Object.keys(groupLoadout).forEach(k => delete groupLoadout[k]);
   Object.keys(groupUnitPrefs).forEach(k => delete groupUnitPrefs[k]);
+  Object.keys(groupMapText).forEach(k => delete groupMapText[k]);
+  briefingText = '';
 
   const kbEl = document.getElementById('kbpages');
   kbEl.textContent = '';
@@ -884,20 +897,24 @@ function fillAutoFields() {
 
     /* ── Menaces surface : via buildThreatSurface (parser) ── */
     if (typeof window.buildThreatSurface === 'function') {
-      const surfTxt = window.buildThreatSurface(d.threats, enemyCoal);
-      fd.sam = surfTxt || '';
+      fd.sam = window.buildThreatSurface(d.threats, enemyCoal) || '';
     }
 
-    /* ── Menaces air : groupes ennemis non-support ── */
-    const airFromThreats = (d.threats.air||[]).filter(t => !enemyCoal || t.coalition === enemyCoal);
+    /* ── Menaces air : via buildThreatAir (parser) + groupes ennemis PKG ── */
+    let airTxt = '';
+    if (typeof window.buildThreatAir === 'function') {
+      airTxt = window.buildThreatAir(d.threats, enemyCoal) || '';
+    }
+    /* Compléter avec les types d'appareils des groupes ennemis PKG */
     const enemyGroups = enemyCoal
       ? [...(d.groups||[]), ...(d.support||[])].filter(g => g.coalition === enemyCoal && !g.isSup)
       : [];
-    const airTypes = [...new Set([
-      ...airFromThreats.map(t => t.type || t.name),
-      ...enemyGroups.map(g => g.acType || g.name)
-    ])].filter(Boolean);
-    if (airTypes.length) fd.air = airTypes.slice(0, 6).join(', ');
+    const pkgTypes = [...new Set(enemyGroups.map(g => g.acType).filter(Boolean))];
+    if (pkgTypes.length) {
+      const extra = pkgTypes.filter(t => !airTxt.includes(t)).join('\n');
+      airTxt = airTxt ? (extra ? airTxt + '\n' + extra : airTxt) : extra;
+    }
+    fd.air = airTxt;
   }
 
   /* Mettre à jour les champs readonly du formulaire */
@@ -910,6 +927,13 @@ function fillAutoFields() {
   Object.entries(AUTO_MAP).forEach(([k, id]) => {
     const el = document.getElementById(id);
     if (el) el.value = fd[k] || '';
+  });
+
+  /* Rafraîchir les zones objFree de toutes les datacards déjà rendues */
+  document.querySelectorAll('[data-obj-free-group]').forEach(el => {
+    if (el.dataset.userEdited === '1') return; /* ne pas écraser les saisies manuelles */
+    const objPriority = [fd.obj1, fd.exec, fd.obj2, fd.sam, fd.air, fd.armt].filter(Boolean);
+    el.textContent = objPriority.join('\n');
   });
 }
 
@@ -935,13 +959,30 @@ function changeCoalition() {
 }
 
 /* Types navires/sol qui ne doivent pas apparaître comme PKG */
-const NON_AIR_RX = /frigate|destroyer|carrier|corvette|cruiser|submarine|boat|patrol|tanker.*ship|LCS|FFG|DDG|CVN|tank|infantry|vehicle|truck|ural/i;
-
 function renderGroups() {
-  const coalFilter = document.getElementById('sel-coalition')?.value || 'blue';
-  const isAirGroup = g => !NON_AIR_RX.test(g.acType || '');
-  const pkg = miz.groups .filter(g => (coalFilter === 'all' || g.coalition === coalFilter) && isAirGroup(g));
-  const sup = miz.support.filter(g => coalFilter === 'all' || g.coalition === coalFilter);
+  const coalFilter   = document.getElementById('sel-coalition')?.value || 'blue';
+  const playerOnly   = document.getElementById('chk-player-only')?.checked || false;
+
+  /* Filtre catégorie : avions et hélicoptères uniquement */
+  const isAirGroup = g => {
+    const cat = (g.dcsCategory || '').toLowerCase();
+    return cat === 'plane' || cat === 'helicopter' || cat === 'unknown' || cat === '';
+  };
+
+  /* Filtre player : si coché, n'afficher que isPlayer=true OU déjà sélectionné */
+  const passesPlayerFilter = g => {
+    if (!playerOnly) return true;
+    // On affiche si c'est un joueur OU si l'utilisateur l'a déjà sélectionné manuellement
+    return g.isPlayer === true || selPkg.has(g.name) || selSup.has(g.name);
+  };
+
+  const pkg = miz.groups .filter(g =>
+    (coalFilter === 'all' || g.coalition === coalFilter) &&
+    isAirGroup(g) &&
+    passesPlayerFilter(g));
+  const sup = miz.support.filter(g =>
+    (coalFilter === 'all' || g.coalition === coalFilter) &&
+    passesPlayerFilter(g));
 
   setBadge('bdg-pkg', `${pkg.length} flight, ${sup.length} support`, 'info');
 
@@ -1228,11 +1269,6 @@ function parseTimeToSeconds(value) {
   return sign * (parseInt(m[2],10)*3600 + parseInt(m[3],10)*60 + (m[4]?parseInt(m[4],10):0));
 }
 
-/** Formate des secondes absolues (0-86400) en HH:MM */
-function secsAbsToHHMM(totalSecs) {
-  const s = ((totalSecs % 86400) + 86400) % 86400;
-  return String(Math.floor(s/3600)).padStart(2,'0') + ':' + String(Math.floor((s%3600)/60)).padStart(2,'0');
-}
 
 /**
  * formatEtaValue — utilisé seulement pour les cellules ETA éditées manuellement.
@@ -1244,9 +1280,9 @@ function formatEtaValue(value, baseTime) {
   const relSec = parseTimeToSeconds(str);
   if (baseTime != null) {
     const baseSec = parseTimeToSeconds(baseTime);
-    if (baseSec != null && relSec != null) return secsAbsToHHMM(baseSec + relSec);
+    if (baseSec != null && relSec != null) return window.secsAbsToHHMM(baseSec + relSec);
   }
-  if (relSec != null) return secsAbsToHHMM(relSec);
+  if (relSec != null) return window.secsAbsToHHMM(relSec);
   return str.replace(/^\+/, '').split(':').slice(0,2).join(':');
 }
 
@@ -1378,14 +1414,19 @@ function mkBriefPage1(pkg, sup) {
   const intelSam = makeCell('Menaces surface', fd.sam);
   intelSam.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
   intelSam.querySelector('.kb-cv').style.fontSize   = '9px';
+  intelSam.querySelector('.kb-cv').style.lineHeight = '1.4';
   const intelAir = makeCell('Menaces aériennes', fd.air);
+  intelAir.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
+  intelAir.querySelector('.kb-cv').style.fontSize   = '9px';
+  intelAir.querySelector('.kb-cv').style.lineHeight = '1.4';
   const intelArm = makeCell('Limitation armement', fd.armt);
   const intelPair = document.createElement('div');
   intelPair.className = 'kb-pair';
   intelPair.style.minHeight = '200px';
   intelPair.style.height = '200px';
   intelPair.append(intelSam, intelAir);
-  [intelSam, intelAir, intelArm].forEach(c => c.querySelector('.kb-cv').style.whiteSpace = 'normal');
+  /* intelSam/intelAir gardent pre-wrap pour l'affichage multilignes */
+  [intelArm].forEach(c => c.querySelector('.kb-cv').style.whiteSpace = 'normal');
 
   body.append(shdObj, objPair, shdExec, execBloc, roeBloc, shdNav, navRow, shdIntel, intelPair, intelArm);
 
@@ -1434,21 +1475,42 @@ function mkBriefPage2() {
   hdr.append(ht, right);
 
   const imgArea = document.createElement('div');
-  imgArea.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:12px;border:.5px solid #c0bdb5;overflow:hidden;background:#f4f1eb;color:#444;';
+  imgArea.style.cssText = 'flex:1;display:flex;flex-direction:column;padding:12px;border:.5px solid #c0bdb5;overflow:auto;background:#f4f1eb;color:#0d1e3e;font-family:"Barlow Condensed",sans-serif;font-size:11px;font-weight:600;line-height:1.5;';
   imgArea.contentEditable = 'true';
 
   if (briefingImage) {
     const img = document.createElement('img');
     img.src = briefingImage;
     img.alt = 'Image de briefing';
-    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;display:block';
+    img.style.cssText = 'max-width:100%;object-fit:contain;display:block;margin-bottom:8px';
     imgArea.appendChild(img);
+    if (briefingText) {
+      const t = document.createElement('div');
+      t.style.whiteSpace = 'pre-wrap';
+      t.textContent = briefingText;
+      imgArea.appendChild(t);
+    }
+  } else if (briefingText) {
+    imgArea.textContent = briefingText;
   } else {
     const placeholder = document.createElement('div');
-    placeholder.style.cssText = 'color:#666;font-size:10px;text-align:center;line-height:1.4;white-space:pre-wrap;margin-top:10px;';
-    placeholder.textContent = 'Zone remplissable : image ou texte. Importer une image via le bouton Image.';
+    placeholder.style.cssText = 'color:#999;font-size:10px;text-align:center;line-height:1.4;margin-top:20px;';
+    placeholder.textContent = 'Zone libre : texte ou image.';
     imgArea.appendChild(placeholder);
   }
+
+  /* Sauvegarder le texte à chaque modification */
+  imgArea.addEventListener('input', () => {
+    briefingText = imgArea.innerText || '';
+  });
+
+  /* Clear : efface seulement l'image, pas le texte */
+  btnClear.onclick = () => {
+    briefingImage = null;
+    /* Supprimer uniquement l'img dans la zone sans recharger toute la page */
+    const imgs = imgArea.querySelectorAll('img');
+    imgs.forEach(i => i.remove());
+  };
 
   page.append(hdr, imgArea);
   return page;
@@ -1603,7 +1665,7 @@ function mkDatacardPage1(g, idx) {
   rowTimes.style.cssText = 'border:.5px solid #c0bdb5;border-top:none';
   rowTimes.append(
     (() => {
-      const c = makeCell('T/O Time', g.toTime || '');
+      const c = makeCell('T/O Time', g.toTime_abs || g.toTime || '');
       const cv = c.querySelector('.kb-cv');
       cv.dataset.toGroup = g.name;
       /* Quand T/O Time change, re-rendre le tableau WP pour recalculer les ETA */
@@ -1676,6 +1738,9 @@ function mkDatacardPage1(g, idx) {
   objFree.style.flex = '1.5';
   objFree.contentEditable = 'true';
   objFree.dataset.placeholder = 'Notes tactiques, dessins, croquis...';
+  objFree.dataset.objFreeGroup = g.name;  /* pour mise à jour coalition */
+  objFree.style.whiteSpace = 'pre-wrap';
+  objFree.addEventListener('input', () => { objFree.dataset.userEdited = '1'; }, { once: true });
   const objPriority = [fd.obj1, fd.exec, fd.obj2, fd.sam, fd.air, fd.armt].filter(Boolean);
   objFree.textContent = objPriority.join('\n');
 
@@ -1858,7 +1923,7 @@ function mkDatacardPage2(g, idx) {
   btnClearMap.type = 'button';
   btnClearMap.textContent = '✕ Clear';
   btnClearMap.title = 'Effacer l\'image de la carte';
-  btnClearMap.onclick = () => { delete groupMapImages[mapKey]; renderPreview(); };
+  /* btnClearMap.onclick set below near mapBlock */
   const right = document.createElement('div');
   right.style.display = 'flex'; right.style.alignItems = 'center'; right.style.gap = '4px';
   const hr = document.createElement('span'); hr.className = 'kb-mhdr-r';
@@ -1884,21 +1949,41 @@ function mkDatacardPage2(g, idx) {
   /* Bloc Carte / Map avec image */
   const shdMap = mkShdr('Carte / Map');
   const mapBlock = document.createElement('div');
-  mapBlock.style.cssText = 'flex:1;border:.5px solid #c0bdb5;padding:8px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:10px;color:#444;background:#f4f1eb;overflow:auto;min-height:120px';
-  
-  const mapImage = groupMapImages[safeId(g.name)];
+  mapBlock.style.cssText = 'flex:1;border:.5px solid #c0bdb5;padding:8px;display:flex;flex-direction:column;gap:8px;font-size:11px;color:#0d1e3e;font-family:"Barlow Condensed",sans-serif;font-weight:600;line-height:1.5;background:#f4f1eb;overflow:auto;min-height:120px';
+  mapBlock.contentEditable = 'true';
+
+  const mapKey2 = safeId(g.name);
+  const mapImage = groupMapImages[mapKey2];
+  const mapTxt   = groupMapText[mapKey2] || '';
+
   if (mapImage) {
     const img = document.createElement('img');
     img.src = mapImage;
     img.alt = 'Carte de mission';
-    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;display:block;margin:auto';
+    img.style.cssText = 'max-width:100%;object-fit:contain;display:block;margin:auto';
     mapBlock.appendChild(img);
-  } else {
-    const mapPlaceholder = document.createElement('div');
-    mapPlaceholder.style.cssText = 'color:#666;text-align:center;line-height:1.4;white-space:pre-wrap;padding:8px;';
-    mapPlaceholder.textContent = 'Zone carte / map remplissable : importer une image via le bouton Image en haut de la page.';
-    mapBlock.appendChild(mapPlaceholder);
   }
+  if (mapTxt) {
+    const t = document.createElement('div');
+    t.style.whiteSpace = 'pre-wrap';
+    t.textContent = mapTxt;
+    mapBlock.appendChild(t);
+  }
+  if (!mapImage && !mapTxt) {
+    const ph = document.createElement('div');
+    ph.style.cssText = 'color:#999;text-align:center;padding:8px;';
+    ph.textContent = 'Zone libre : texte ou image.';
+    mapBlock.appendChild(ph);
+  }
+
+  mapBlock.addEventListener('input', () => { groupMapText[mapKey2] = mapBlock.innerText || ''; });
+
+  /* Clear : supprimer uniquement l'image */
+  btnClearMap.onclick = () => {
+    delete groupMapImages[mapKey2];
+    const imgs = mapBlock.querySelectorAll('img');
+    imgs.forEach(i => i.remove());
+  };
 
   page.append(hdr, shdWP, wpTbl, addBtn, shdMap, mapBlock);
   return page;
@@ -1979,18 +2064,17 @@ function makeWPTable(g) {
       hr.appendChild(th);
     });
 
-    /* ── Calcul cumulatif ETA ──────────────────────────────────────────
-       eta_sec = secondes absolues brutes du WP (depuis le fichier mission)
-       toSec   = heure T/O saisie par l'utilisateur (secondes absolues)
-       WP1 ETA = toSec
-       WP[N] ETA = toSec + (eta_sec[N] - eta_sec[0])
-       Sans T/O : afficher delta brut +HH:MM
+/* ── Calcul cumulatif ETA — logique v7 améliorée ───────────────────
+       1. Lire T/O Time depuis la cellule éditable (heure absolue HH:MM)
+       2. Si vide : utiliser g.toTime_abs (calculé par le parser depuis start_time)
+       3. WP[N] ETA = toSec + (eta_sec[N] - eta_sec[WP0])
+          eta_sec = secondes absolues brutes du fichier mission
     ──────────────────────────────────────────────────────────────────── */
     const toEl    = document.querySelector(`[data-to-group="${CSS.escape(g.name)}"]`);
-    const toRaw   = (toEl && toEl.textContent.trim()) ? toEl.textContent.trim() : '';
-    /* Convertir HH:MM ou HH:MM:SS en secondes absolues */
+    const toRaw   = (toEl && toEl.textContent.trim())
+                      ? toEl.textContent.trim()
+                      : (g.toTime_abs || g.toTime || '');
     const toSec   = parseTimeToSeconds(toRaw);
-    /* Secondes absolues du WP1 (ancre pour le calcul des legs) */
     const eta0    = wps[0] ? (wps[0].eta_sec || 0) : 0;
 
     const tbody = tbl.createTBody();
@@ -2003,16 +2087,16 @@ function makeWPTable(g) {
         wp.alt   = pref.spalt === 'kmhm'? (wp.altM || 0)     : (wp.alt   || 0);
 
         const eta_s = wp.eta_sec || 0;
-        if (toSec !== null) {
-          /* Offset du WP par rapport au WP1 en secondes */
-          const offset = Math.max(0, eta_s - eta0);
-          wp.etaDisplay = secsAbsToHHMM(toSec + offset);
-        } else {
-          /* Pas de T/O saisi : delta brut +HH:MM */
-          wp.etaDisplay = wp.eta
-            ? wp.eta.replace(/^\+/, '').split(':').slice(0,2).join(':')
-            : '';
-        }
+
+        /* Toujours basé sur un T/O (fallback = WP1) */
+        const baseTO = (toSec !== null) ? toSec : eta0;
+
+        /* Offset relatif au WP1 */
+        const offset = Math.max(0, eta_s - eta0);
+
+        /* ETA cumulé */
+        wp.etaDisplay = window.secsAbsToHHMM(baseTO + offset);
+        
         tbody.appendChild(makeWpRow(wp, i, g.name));
       } else {
         const tr = tbody.insertRow();
@@ -2026,10 +2110,15 @@ function makeWPTable(g) {
   wrapper.append(ctrlBar, currentTable);
 
   wrapper.addEventListener('refresh-eta', () => {
+    console.log('ETA DEBUG', wps.map(w => w.eta_sec)); // ligne de debug pour vérifier les eta_sec bruts des WPs
     const toEl2   = document.querySelector(`[data-to-group="${CSS.escape(g.name)}"]`);
-    const toRaw2  = (toEl2 && toEl2.textContent.trim()) ? toEl2.textContent.trim() : '';
+    const toRaw2  = (toEl2 && toEl2.textContent.trim())
+                      ? toEl2.textContent.trim()
+                      : (g.toTime_abs || g.toTime || '');
     const toSec2  = parseTimeToSeconds(toRaw2);
-    const eta0_2  = wps[0] ? (wps[0].eta_sec || 0) : 0;
+    const eta0_2 = (wps.length && wps[0].eta_sec)
+    ? wps[0].eta_sec
+    : 0;
 
     const tbody2  = wrapper.querySelector('table tbody');
     if (!tbody2) return;
@@ -2042,13 +2131,20 @@ function makeWPTable(g) {
       if (!etaTd) return;
       if (etaTd.dataset.manual === '1') return; /* préserver les valeurs manuelles */
 
-      let display = '';
-      if (toSec2 !== null) {
-        const offset2 = Math.max(0, (wp2.eta_sec || 0) - eta0_2);
-        display = secsAbsToHHMM(toSec2 + offset2);
-      } else {
-        display = wp2.eta ? wp2.eta.replace(/^\+/, '').split(':').slice(0,2).join(':') : '';
+      let eta_s2 = wp2.eta_sec;
+      /* fallback si ETA absent → cumul basé sur vitesse/distance déjà calculée */
+      if (!eta_s2 && i > 0) {
+        eta_s2 = wps[i - 1].eta_sec || 0;
       }
+
+      /* fallback automatique sur WP1 si pas de T/O */
+      const baseTO2 = (toSec2 !== null) ? toSec2 : eta0_2;
+
+      /* offset relatif au WP1 */
+      const offset2 = Math.max(0, eta_s2 - eta0_2);
+
+      /* ETA cumulé */
+      const display = window.secsAbsToHHMM(baseTO2 + offset2);
       etaTd.textContent = display;
       etaTd.dataset.etaCalc = display;
     });
@@ -2155,11 +2251,11 @@ function makeCommLadder(g) {
   const makeRadioBlock = (label, channels) => {
     const wrap = document.createElement('div');
     const hdr  = document.createElement('div'); hdr.className = 'kb-mhdr2'; hdr.textContent = label;
-    const tbl  = document.createElement('table'); tbl.className = 'kb-tbl'; tbl.style.fontSize = '9px';
+    const tbl  = document.createElement('table'); tbl.className = 'kb-tbl'; tbl.style.fontSize = '14px';
     const thead = tbl.createTHead(); const hr = thead.insertRow();
     ['N°','Fréq.'].forEach((h, i) => {
       const th = document.createElement('th'); th.textContent = h;
-      th.style.width = i === 0 ? '18px' : '80px';
+      th.style.width = i === 0 ? '22px' : '95px';
       hr.appendChild(th);
     });
 
