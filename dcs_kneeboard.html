@@ -2308,19 +2308,20 @@
       const inp = document.createElement('input');
       inp.id = afId;
       inp.className = 'af-input';
-      inp.setAttribute('list', dlId);
-      inp.value = af ? af.name : '';
+      const isCarrierAf = af && af.isCarrier;
+      if (!isCarrierAf) inp.setAttribute('list', dlId);
+      inp.value = af ? (isCarrierAf ? (af.name || af.type || '') : af.name) : '';
       inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:10px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:center';
-      inp.addEventListener('input', () => syncAirfieldFromBrief(inp, g.name));
+      if (!isCarrierAf) inp.addEventListener('input', () => syncAirfieldFromBrief(inp, g.name));
       tdAf.appendChild(inp);
 
       const tdUhf = document.createElement('td'); tdUhf.id = afId + '-uhf'; tdUhf.contentEditable = 'true';
       tdUhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
-      tdUhf.textContent = af ? (af.uhf !== 'n/a' ? af.uhf : '—') : '';
+      tdUhf.textContent = af ? (isCarrierAf ? (af.freq || '—') : (af.uhf !== 'n/a' ? af.uhf : '—')) : '';
 
       const tdVhf = document.createElement('td'); tdVhf.id = afId + '-vhf'; tdVhf.contentEditable = 'true';
       tdVhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
-      tdVhf.textContent = af ? (af.vhf !== 'n/a' ? af.vhf : '—') : '';
+      tdVhf.textContent = af ? (isCarrierAf ? (af.tacan || '—')  : (af.vhf !== 'n/a' ? af.vhf : '—')) : '';
 
       tr.append(tdNum, tdCs, tdNb, tdType, tdTask, tdF1, tdF2, tdTcn, tdAf, tdUhf, tdVhf);
       return tr;
@@ -2330,7 +2331,7 @@
       const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
       const thead = tbl.createTHead();
       const hr = thead.insertRow();
-      ['N°', 'Callsign', 'Nb', 'Type', 'Task/Rôle', 'Fréq.UHF', 'Fréq.VHF', 'TCN', 'Plage horaire active', 'Position BE/WP'].forEach((h, i) => {
+      ['N°', 'Callsign', 'Nb', 'Type', 'Task/Rôle', 'Fréq.UHF', 'Fréq.VHF', 'TCN', 'Notes', 'Position BE/WP'].forEach((h, i) => {
         const th = document.createElement('th'); th.textContent = h;
         const widths = ['16px', '52px', '18px', '42px', '70px', '48px', '48px', '32px', '78px', '86px'];
         th.style.width = widths[i] || '';
@@ -2472,7 +2473,7 @@
       cfgRow.append(loCellLarge, fuelCell, makeCell('Joker', lo.joker), makeCell('Bingo', lo.bingo || ''));
 
       /* Airbases */
-      const shdAf = mkShdr('Airbases (T/O - ALT - DIV)');
+      const shdAf = mkShdr('Airbases or Carrier (T/O - ALT - DIV)');
       const afTbl = makeAirbaseTable(g);
 
       /* Objectives & Tacticals - maximized */
@@ -3008,26 +3009,42 @@
         tdLbl.style.cssText = 'font-size:9px;font-weight:700;color:#555;white-space:nowrap';
         tdLbl.textContent = label;
 
+        /* Normalisation : carrier ou aéroport classique → même interface */
+        const isCarrier = af && af.isCarrier;
+        const carrierLabel = isCarrier
+          ? [af.name || af.type || '', af.tacanCallsign ? `(${af.tacanCallsign})` : ''].filter(Boolean).join(' ')
+          : '';
+        const afName  = af ? (isCarrier ? carrierLabel                                 : (af.name || '')) : '';
+        const afUhf   = af ? (isCarrier ? (af.freq  || '')                             : (af.uhf  !== 'n/a' ? af.uhf  : '')) : '';
+        const afVhf   = af ? (isCarrier ? ''                                           : (af.vhf  !== 'n/a' ? af.vhf  : '')) : '';
+        const afRwy   = af ? (isCarrier ? 'n/a'                                        : (af.rwy  || ''))  : '';
+        const afIls   = af ? (isCarrier ? (af.icls  || '')                             : (af.ils  !== 'n/a' ? af.ils  : '')) : '';
+        const afTcn   = af ? (isCarrier ? (af.tacan || '')                             : (af.tacan !== 'n/a' ? af.tacan : '')) : '';
+
         const tdName = document.createElement('td');
         tdName.style.cssText = 'width:22%;text-align:left;padding-left:4px';
         const inp = document.createElement('input');
         inp.className = 'af-input';
-        inp.setAttribute('list', dlId);
-        inp.value = af ? af.name : '';
+        if (!isCarrier) inp.setAttribute('list', dlId);
+        inp.value = afName;
         inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:10px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:left';
-        inp.addEventListener('input', () => fillAirbaseRow(inp, g.name, label));
+        if (!isCarrier) inp.addEventListener('input', () => fillAirbaseRow(inp, g.name, label));
         tdName.appendChild(inp);
 
+        /* Colonne RWY : pour un carrier on affiche "CALLSIGN" comme en-tête */
         const tdUhf = document.createElement('td'); tdUhf.contentEditable = 'true'; tdUhf.style.textAlign = 'center';
-        tdUhf.textContent = af ? (af.uhf !== 'n/a' ? af.uhf : '') : '';
+        tdUhf.textContent = afUhf;
         const tdVhf = document.createElement('td'); tdVhf.contentEditable = 'true'; tdVhf.style.textAlign = 'center';
-        tdVhf.textContent = af ? (af.vhf !== 'n/a' ? af.vhf : '') : '';
+        tdVhf.textContent = afVhf;
         const tdRwy = document.createElement('td'); tdRwy.contentEditable = 'true'; tdRwy.style.textAlign = 'center';
-        tdRwy.textContent = af ? (af.rwy || '') : '';
+        tdRwy.textContent = afRwy;
         const tdIls = document.createElement('td'); tdIls.contentEditable = 'true'; tdIls.style.textAlign = 'center';
-        tdIls.textContent = af ? (af.ils !== 'n/a' ? af.ils : '') : '';
+        tdIls.textContent = afIls;
         const tdTcn = document.createElement('td'); tdTcn.contentEditable = 'true'; tdTcn.style.textAlign = 'center';
-        tdTcn.textContent = af ? (af.tacan !== 'n/a' ? af.tacan : '') : '';
+        tdTcn.textContent = afTcn;
+
+        /* Fond légèrement bleuté pour la ligne carrier */
+        if (isCarrier) tr.style.background = '#e8f0fa';
 
         tr.append(tdLbl, tdName, tdUhf, tdVhf, tdRwy, tdIls, tdTcn);
         return tr;

@@ -302,9 +302,12 @@ function parseGroupWaypoints(groupContent, startTime, task, theatre) {
     : '';
 
     if (/TakeOff|From Parking|From Ground|Runway/.test(action)) {
-      toTime = delta;                        /* delta brut conservé pour totTime */
-      toTime_abs = secsAbsToHHMM(eta);       /* HH:MM absolu pour affichage T/O */
+      toTime = delta;
+      toTime_abs = secsAbsToHHMM(eta);
       if (aidM && globAF?.[theatre]?.[aidM[1]]) airdrome = globAF[theatre][aidM[1]];
+      /* Porte-avions : linkUnit pointe vers l'unitId du navire */
+      const luM = chunk.match(/\["linkUnit"\]\s*=\s*(\d+)/);
+      if (luM && !aidM) airdrome = { carrierUnitId: parseInt(luM[1]), isCarrier: true };
     }
 
     if (action === task) totTime = delta;
@@ -617,6 +620,96 @@ window.applyDtcToGroup = function(dtcName, dtcFiles, theatre, startTime) {
 
 
 /* ══════════════════════════════════════════════════════════════
+   CARRIER PARSER — parse tous les navires/PA du fichier mission
+   Retourne une Map<unitId, {type,name,freq,x,y,tacan,icls,callsign}>
+══════════════════════════════════════════════════════════════ */
+
+/* Types DCS reconnus comme porte-avions / navires avec pont d'envol */
+const CARRIER_TYPES = new Set([
+  'CVN_71','CVN_72','CVN_73','CVN_74','CVN_75',          /* Nimitz class */
+  'Forrestal',                                             /* Forrestal */
+  'CV_1143_5','kuznetsov',                                 /* Kuznetsov */
+  'LHA_Tarawa',                                            /* Tarawa LHA */
+  'VINSON',                                                /* Carl Vinson */
+  'stennis',
+]);
+
+function parseCarriers(content) {
+  const carriers = new Map(); /* unitId → carrier object */
+
+  /* ── 1. Chercher tous les groupes navire ── */
+  const shipSectionM = content.match(/\["ship"\]\s*=\s*\{([\s\S]*?)\n\s*\},\s*--\s*end of \["ship"\]/g);
+  if (!shipSectionM) return carriers;
+
+  for (const shipSection of shipSectionM) {
+    /* Trouver chaque unitId dans ce bloc */
+    const unitRe = /\["unitId"\]\s*=\s*(\d+)/g;
+    let um;
+    while ((um = unitRe.exec(shipSection)) !== null) {
+      const unitId = parseInt(um[1]);
+      const ub = getEnclosingBlock(shipSection, um.index);
+
+      const typeM  = ub.match(/\["type"\]\s*=\s*"([^"]+)"/);
+      const nameM  = ub.match(/\["name"\]\s*=\s*"([^"]+)"/);
+      const freqM  = ub.match(/\["frequency"\]\s*=\s*([\d.]+)/);
+      const xM     = ub.match(/\["x"\]\s*=\s*([-\d.]+)/);
+      const yM     = ub.match(/\["y"\]\s*=\s*([-\d.]+)/);
+
+      const type = typeM ? typeM[1] : '';
+      /* Garder tous les navires : le lien linkUnit peut pointer vers n'importe quel ship */
+      carriers.set(unitId, {
+        unitId,
+        type,
+        name:      nameM ? nameM[1] : '',
+        freqHz:    freqM ? parseFloat(freqM[1]) : 0,
+        freq:      freqM ? (parseFloat(freqM[1]) / 1e6).toFixed(3) : '',
+        x:         xM    ? parseFloat(xM[1])    : 0,
+        y:         yM    ? parseFloat(yM[1])    : 0,
+        tacan:     '',
+        tacanCallsign: '',
+        tacanFreq: '',
+        icls:      '',
+        isCarrier: CARRIER_TYPES.has(type) || /CVN|carrier|stennis|nimitz|forrestal|kuznetsov|tarawa/i.test(type),
+      });
+    }
+  }
+
+  /* ── 2. Chercher les beacons ActivateBeacon / ActivateICLS dans toute la mission ── */
+  /* Ils se trouvent dans les tâches des groupes navire ou des contrôleurs mission */
+  const beaconRe = /\["id"\]\s*=\s*"ActivateBeacon"[\s\S]*?\["params"\]\s*=\s*\{([^}]+(?:\{[^}]*\}[^}]*)*)\}/g;
+  let bm;
+  while ((bm = beaconRe.exec(content)) !== null) {
+    const params = bm[0];
+    const uidM  = params.match(/\["unitId"\]\s*=\s*(\d+)/);
+    const chM   = params.match(/\["channel"\]\s*=\s*(\d+)/);
+    const modeM = params.match(/\["modeChannel"\]\s*=\s*"([^"]+)"/);
+    const csM   = params.match(/\["callsign"\]\s*=\s*"([^"]+)"/);
+    const fqM   = params.match(/\["frequency"\]\s*=\s*([\d.]+)/);
+    if (!uidM || !chM) continue;
+    const uid = parseInt(uidM[1]);
+    const carrier = carriers.get(uid);
+    if (!carrier) continue;
+    carrier.tacan         = chM[1] + (modeM ? modeM[1] : 'X');
+    carrier.tacanCallsign = csM ? csM[1] : '';
+    carrier.tacanFreq     = fqM ? (parseFloat(fqM[1]) / 1e6).toFixed(3) : '';
+  }
+
+  const iclsRe = /\["id"\]\s*=\s*"ActivateICLS"[\s\S]*?\["params"\]\s*=\s*\{([^}]+(?:\{[^}]*\}[^}]*)*)\}/g;
+  let im;
+  while ((im = iclsRe.exec(content)) !== null) {
+    const params = im[0];
+    const uidM = params.match(/\["unitId"\]\s*=\s*(\d+)/);
+    const chM  = params.match(/\["channel"\]\s*=\s*(\d+)/);
+    if (!uidM || !chM) continue;
+    const uid = parseInt(uidM[1]);
+    const carrier = carriers.get(uid);
+    if (carrier) carrier.icls = chM[1];
+  }
+
+  return carriers;
+}
+
+/* ══════════════════════════════════════════════════════════════
    8. PARSEUR PRINCIPAL
    Méthodologie v7 : ancrage sur ["groupId"] + getEnclosingBlock
 ══════════════════════════════════════════════════════════════ */
@@ -624,10 +717,14 @@ window.parseMiz = function (content, theatre, dictionary = {}) {
 
   const translate = s => (s && String(s).startsWith('DictKey')) ? (dictionary[s]||s) : s;
 
+  /* ── Carriers : parsé en premier pour résoudre les linkUnit ── */
+  const carriersMap = parseCarriers(content);
+
   const res = {
     theatre, date:'', time:'', sunrise:'', sunset:'', start_time:0,
     weather:{}, bullseye:{ blue:null, red:null },
     groups:[], support:[],
+    carriers: [...carriersMap.values()],
     threats:{
       sam_lr:[], sam_mr:[], sam_sr:[], aaa:[],
       naval_cvn:[], naval_surface:[],
@@ -851,7 +948,14 @@ window.parseMiz = function (content, theatre, dictionary = {}) {
     )];
 
     /* ── Waypoints ── */
-    const { wps, toTime, toTime_abs: entry_toTimeAbs, totTime, airdrome } = parseGroupWaypoints(gc, res.start_time, task, theatre);
+    const { wps, toTime, toTime_abs: entry_toTimeAbs, totTime, airdrome: rawAirdrome } = parseGroupWaypoints(gc, res.start_time, task, theatre);
+
+    /* ── Résolution porte-avions : si le WP T/O a un linkUnit, récupérer le navire ── */
+    let airdrome = rawAirdrome;
+    if (rawAirdrome && rawAirdrome.isCarrier && rawAirdrome.carrierUnitId != null) {
+      const carrier = carriersMap.get(rawAirdrome.carrierUnitId);
+      if (carrier) airdrome = carrier;
+    }
 
     /* ── DTC : récupérer le nom du fichier cartouche depuis les unités ──
        Le bloc ["DTC"] avec Cartridges est au niveau unité, pas groupe.
