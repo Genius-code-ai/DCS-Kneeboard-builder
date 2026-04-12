@@ -258,7 +258,7 @@ function parseTankerOrbit(groupContent, theatre) {
 function parseGroupWaypoints(groupContent, startTime, task, theatre) {
   const secsAbsToHHMM = window.secsAbsToHHMM;
   const wps = [];
-  let toTime = '', toTime_abs = '', totTime = '', airdrome = null;
+  let toTime = '', toTime_abs = '', totTime = '', airdrome = null, landingAirdrome = null;
 
   const rcM = groupContent.match(/\["route"\]\s*=\s*\{([\s\S]*?)\n\s*\},\s*--\s*end of \["route"\]/);
   if (!rcM) return { wps, toTime, toTime_abs, totTime, airdrome };
@@ -308,6 +308,12 @@ function parseGroupWaypoints(groupContent, startTime, task, theatre) {
       /* Porte-avions : linkUnit pointe vers l'unitId du navire */
       const luM = chunk.match(/\["linkUnit"\]\s*=\s*(\d+)/);
       if (luM && !aidM) airdrome = { carrierUnitId: parseInt(luM[1]), isCarrier: true };
+    }
+
+    if (/Land/.test(action)) {
+      if (aidM && globAF?.[theatre]?.[aidM[1]]) landingAirdrome = globAF[theatre][aidM[1]];
+      const luM = chunk.match(/\["linkUnit"\]\s*=\s*(\d+)/);
+      if (luM && !aidM) landingAirdrome = { carrierUnitId: parseInt(luM[1]), isCarrier: true };
     }
 
     if (action === task) totTime = delta;
@@ -365,7 +371,7 @@ function parseGroupWaypoints(groupContent, startTime, task, theatre) {
     }
   }
 
-  return { wps, toTime, toTime_abs: toTime_abs || '', totTime, airdrome };
+  return { wps, toTime, toTime_abs: toTime_abs || '', totTime, airdrome, landingAirdrome };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -948,13 +954,20 @@ window.parseMiz = function (content, theatre, dictionary = {}) {
     )];
 
     /* ── Waypoints ── */
-    const { wps, toTime, toTime_abs: entry_toTimeAbs, totTime, airdrome: rawAirdrome } = parseGroupWaypoints(gc, res.start_time, task, theatre);
+    const { wps, toTime, toTime_abs: entry_toTimeAbs, totTime, airdrome: rawAirdrome, landingAirdrome: rawLandingAirdrome } = parseGroupWaypoints(gc, res.start_time, task, theatre);
 
-    /* ── Résolution porte-avions : si le WP T/O a un linkUnit, récupérer le navire ── */
+    /* ── Résolution porte-avions T/O ── */
     let airdrome = rawAirdrome;
     if (rawAirdrome && rawAirdrome.isCarrier && rawAirdrome.carrierUnitId != null) {
       const carrier = carriersMap.get(rawAirdrome.carrierUnitId);
       if (carrier) airdrome = carrier;
+    }
+
+    /* ── Résolution porte-avions Landing ── */
+    let landingAirdrome = rawLandingAirdrome;
+    if (rawLandingAirdrome && rawLandingAirdrome.isCarrier && rawLandingAirdrome.carrierUnitId != null) {
+      const carrier = carriersMap.get(rawLandingAirdrome.carrierUnitId);
+      if (carrier) landingAirdrome = carrier;
     }
 
     /* ── DTC : récupérer le nom du fichier cartouche depuis les unités ──
@@ -984,7 +997,7 @@ window.parseMiz = function (content, theatre, dictionary = {}) {
       task, freq, tacan,
       isPlayer: isGroupPlayer, isSup,
       weapons, waypoints: wps,
-      toTime, toTime_abs: entry_toTimeAbs, totTime, airdrome,
+      toTime, toTime_abs: entry_toTimeAbs, totTime, airdrome, landingAirdrome,
       start_time: res.start_time,
       x: xm ? parseFloat(xm[1]) : 0,
       y: ym ? parseFloat(ym[1]) : 0,

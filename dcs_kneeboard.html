@@ -3052,8 +3052,22 @@
 
       tbody.appendChild(document.createElement('tr')).appendChild(dl); /* datalist dans une cellule cachée */
       tbody.lastChild.style.display = 'none';
-      tbody.appendChild(makeAfRow('T/O', g.airdrome));
-      tbody.appendChild(makeAfRow('ALT', null));
+
+      /* ── Détermination landing ── */
+      const landing = g.landingAirdrome || null;
+      const toId  = g.airdrome  ? (g.airdrome.isCarrier  ? g.airdrome.unitId  : g.airdrome.name)  : null;
+      const ldId  = landing     ? (landing.isCarrier      ? landing.unitId     : landing.name)     : null;
+      const sameBase = toId !== null && ldId !== null && toId === ldId;
+      const noTo    = !g.airdrome;
+
+      /* T/O : ajouter "- Landing" si même base ou si T/O vide */
+      const toLabel  = (sameBase || noTo) ? 'T/O - Landing' : 'T/O';
+      /* ALT : devient "ALT - Landing" si landing est différent du T/O */
+      const altLabel = (!sameBase && !noTo && landing) ? 'ALT - Landing' : 'ALT';
+      const altAf    = (!sameBase && !noTo && landing) ? landing : null;
+
+      tbody.appendChild(makeAfRow(toLabel, g.airdrome));
+      tbody.appendChild(makeAfRow(altLabel, altAf));
       tbody.appendChild(makeAfRow('DIV', null));
       return tbl;
     }
