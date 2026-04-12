@@ -64,10 +64,23 @@
     .app {
       display: flex;
       height: 100vh;
+      overflow: visible;
     }
 
     /* Panneau gauche (formulaires) */
     .left {
+      width: 320px;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      overflow: visible;        /* permet au bouton de dépasser */
+      transition: width .22s ease, min-width .22s ease;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    /* Contenu interne clippé */
+    .left-inner {
       width: 320px;
       min-width: 320px;
       background: var(--bg2);
@@ -75,6 +88,57 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      flex: 1;
+      transition: opacity .15s ease;
+    }
+
+    .left.collapsed {
+      width: 0;
+      min-width: 0;
+    }
+
+    .left.collapsed .left-inner {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Bouton toggle panneau gauche */
+    .left-toggle {
+      position: absolute;
+      top: 50vh;
+      right: -14px;
+      transform: translateY(-50%);
+      z-index: 200;
+      width: 14px;
+      height: 48px;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-left: none;
+      border-radius: 0 5px 5px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text2);
+      font-size: 9px;
+      transition: background .12s, color .12s;
+      user-select: none;
+      padding: 0;
+    }
+
+    .left-toggle:hover {
+      background: var(--bg4);
+      color: var(--white);
+    }
+
+    .left-toggle .toggle-arrow {
+      display: inline-block;
+      transition: transform .22s ease;
+      line-height: 1;
+    }
+
+    .left.collapsed .left-toggle .toggle-arrow {
+      transform: rotate(180deg);
     }
 
     /* Panneau droit (aperçu) */
@@ -980,7 +1044,7 @@
     .kb-free p,
     .kb-free span,
     .kb-free b,
-    .kb-free br+div {
+    .kb-free br + div {
       color: #0d1e3e !important;
       font-family: 'Barlow Condensed', sans-serif !important;
       font-size: 11px !important;
@@ -1112,7 +1176,11 @@
   <div class="app">
 
     <!-- ═══════════════════ PANNEAU GAUCHE ═══════════════════ -->
-    <div class="left">
+    <div class="left" id="left-panel">
+      <button class="left-toggle" onclick="toggleLeftPanel()" title="Masquer/afficher le panneau">
+        <span class="toggle-arrow">◀</span>
+      </button>
+      <div class="left-inner">
       <div class="l-hdr">
         <div class="l-title">DCS Kneeboard</div>
         <div class="l-sub">generator · v4 · mission card builder</div>
@@ -1193,10 +1261,9 @@
           <div class="prog-fill" id="pfill"></div>
         </div>
         <div class="status" id="sbar">En attente d'un fichier .miz</div>
-      </div>
+      </div><!-- /l-foot -->
+      </div><!-- /left-inner -->
     </div>
-
-    <!-- ═══════════════════ PANNEAU DROIT ═══════════════════ -->
     <div class="right">
       <div class="r-bar">
         <span class="r-bar-title">Aperçu kneeboard</span>
@@ -1284,7 +1351,7 @@
       while (el.firstChild) el.removeChild(el.firstChild);
       imgs.forEach(img => el.appendChild(img));
       if (rawText.trim()) {
-        rawText.split('\n').forEach(function (line, i, arr) {
+        rawText.split('\n').forEach(function(line, i, arr) {
           el.appendChild(document.createTextNode(line));
           if (i < arr.length - 1) el.appendChild(document.createElement('br'));
         });
@@ -1325,6 +1392,11 @@
     /* ════════════════════════════════════════════════════════════════
        ACCORDÉONS
        ════════════════════════════════════════════════════════════════ */
+
+    function toggleLeftPanel() {
+      const panel = document.getElementById('left-panel');
+      panel.classList.toggle('collapsed');
+    }
 
     function toggleAcc(id) {
       const el = document.getElementById(id);
@@ -1384,7 +1456,7 @@
               dtcPromises.push(
                 zipEntry.async('string').then(str => {
                   try { dtcFiles.set(dtcName, JSON.parse(str)); }
-                  catch (e) { console.warn('DTC parse error for', dtcName, e); }
+                  catch(e) { console.warn('DTC parse error for', dtcName, e); }
                 })
               );
             }
@@ -2210,7 +2282,7 @@
         sel.deleteFromDocument();
         const range = sel.getRangeAt(0);
         const lines = text.split('\n');
-        lines.forEach(function (line, i) {
+        lines.forEach(function(line, i) {
           range.insertNode(document.createTextNode(line));
           range.collapse(false);
           if (i < lines.length - 1) {
@@ -2321,7 +2393,7 @@
 
       const tdVhf = document.createElement('td'); tdVhf.id = afId + '-vhf'; tdVhf.contentEditable = 'true';
       tdVhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
-      tdVhf.textContent = af ? (isCarrierAf ? (af.tacan || '—') : (af.vhf !== 'n/a' ? af.vhf : '—')) : '';
+      tdVhf.textContent = af ? (isCarrierAf ? (af.tacan || '—')  : (af.vhf !== 'n/a' ? af.vhf : '—')) : '';
 
       tr.append(tdNum, tdCs, tdNb, tdType, tdTask, tdF1, tdF2, tdTcn, tdAf, tdUhf, tdVhf);
       return tr;
@@ -2741,7 +2813,7 @@
         sel.deleteFromDocument();
         const range = sel.getRangeAt(0);
         const lines = text.split('\n');
-        lines.forEach(function (line, i) {
+        lines.forEach(function(line, i) {
           range.insertNode(document.createTextNode(line));
           range.collapse(false);
           if (i < lines.length - 1) {
@@ -3014,12 +3086,12 @@
         const carrierLabel = isCarrier
           ? [af.name || af.type || '', af.tacanCallsign ? `(${af.tacanCallsign})` : ''].filter(Boolean).join(' ')
           : '';
-        const afName = af ? (isCarrier ? carrierLabel : (af.name || '')) : '';
-        const afUhf = af ? (isCarrier ? (af.freq || '') : (af.uhf !== 'n/a' ? af.uhf : '')) : '';
-        const afVhf = af ? (isCarrier ? '' : (af.vhf !== 'n/a' ? af.vhf : '')) : '';
-        const afRwy = af ? (isCarrier ? 'n/a' : (af.rwy || '')) : '';
-        const afIls = af ? (isCarrier ? (af.icls || '') : (af.ils !== 'n/a' ? af.ils : '')) : '';
-        const afTcn = af ? (isCarrier ? (af.tacan || '') : (af.tacan !== 'n/a' ? af.tacan : '')) : '';
+        const afName  = af ? (isCarrier ? carrierLabel                                 : (af.name || '')) : '';
+        const afUhf   = af ? (isCarrier ? (af.freq  || '')                             : (af.uhf  !== 'n/a' ? af.uhf  : '')) : '';
+        const afVhf   = af ? (isCarrier ? ''                                           : (af.vhf  !== 'n/a' ? af.vhf  : '')) : '';
+        const afRwy   = af ? (isCarrier ? 'n/a'                                        : (af.rwy  || ''))  : '';
+        const afIls   = af ? (isCarrier ? (af.icls  || '')                             : (af.ils  !== 'n/a' ? af.ils  : '')) : '';
+        const afTcn   = af ? (isCarrier ? (af.tacan || '')                             : (af.tacan !== 'n/a' ? af.tacan : '')) : '';
 
         const tdName = document.createElement('td');
         tdName.style.cssText = 'width:22%;text-align:left;padding-left:4px';
@@ -3055,19 +3127,18 @@
 
       /* ── Détermination landing ── */
       const landing = g.landingAirdrome || null;
-      const toId = g.airdrome ? (g.airdrome.isCarrier ? g.airdrome.unitId : g.airdrome.name) : null;
-      const ldId = landing ? (landing.isCarrier ? landing.unitId : landing.name) : null;
+      const toId  = g.airdrome  ? (g.airdrome.isCarrier  ? g.airdrome.unitId  : g.airdrome.name)  : null;
+      const ldId  = landing     ? (landing.isCarrier      ? landing.unitId     : landing.name)     : null;
       const sameBase = toId !== null && ldId !== null && toId === ldId;
-      const noTo = !g.airdrome;
+      const noTo    = !g.airdrome;
 
       /* T/O : ajouter "- Landing" si même base ou si T/O vide */
-      const toLabel = (sameBase || noTo) ? 'T/O - Landing' : 'T/O';
+      const toLabel  = (sameBase || noTo) ? 'T/O - Landing' : 'T/O';
       /* ALT : devient "ALT - Landing" si landing est différent du T/O */
       const altLabel = (!sameBase && !noTo && landing) ? 'ALT - Landing' : 'ALT';
-      const altAf = (!sameBase && !noTo && landing) ? landing : null;
+      const altAf    = (!sameBase && !noTo && landing) ? landing : null;
 
-      const toAf = (noTo && landing) ? landing : g.airdrome;
-      tbody.appendChild(makeAfRow(toLabel, toAf));
+      tbody.appendChild(makeAfRow(toLabel, g.airdrome));
       tbody.appendChild(makeAfRow(altLabel, altAf));
       tbody.appendChild(makeAfRow('DIV', null));
       return tbl;
