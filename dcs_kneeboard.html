@@ -73,7 +73,8 @@
       min-width: 320px;
       display: flex;
       flex-direction: column;
-      overflow: visible;        /* permet au bouton de dépasser */
+      overflow: visible;
+      /* permet au bouton de dépasser */
       transition: width .22s ease, min-width .22s ease;
       flex-shrink: 0;
       position: relative;
@@ -614,6 +615,70 @@
       color: var(--text3);
     }
 
+
+    /* ═══════════════════════════════════════════════
+       SCALE ADAPTATIF + MODES D'AFFICHAGE
+    ═══════════════════════════════════════════════ */
+
+    /* Wrapper de centrage : occupe tout le scroll, centre le scaler */
+    #kbpages-scaler-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Conteneur de scaling : largeur naturelle, scale depuis le centre haut */
+    #kbpages-scaler {
+      transform-origin: top center;
+      will-change: transform;
+      flex-shrink: 0;
+    }
+
+    /* Mode 2 pages côte-à-côte (défaut) */
+    .kb-pages {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      align-items: center;
+    }
+
+    /* Mode 1 page par page */
+    .kb-pages.single .kb-wrap {
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Bouton toggle mode affichage */
+    .btn-view-mode {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-family: var(--cond);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border2);
+      transition: all .12s;
+      white-space: nowrap;
+    }
+
+    .btn-view-mode:hover {
+      background: var(--bg4);
+    }
+
+    .btn-view-mode.active {
+      background: var(--accent-bg);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
     /* ═══════════════════════════════════════════════
        BARRE D'OUTILS DROITE
     ═══════════════════════════════════════════════ */
@@ -672,7 +737,7 @@
     .r-scroll {
       flex: 1;
       overflow: auto;
-      padding: 24px;
+      padding: 24px 0;
       background: #1c1e26;
     }
 
@@ -751,7 +816,7 @@
     .kb-mhdr {
       background: #0d1e3e;
       color: #fff;
-      padding: 5px 10px;
+      padding: 6px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -759,14 +824,14 @@
     }
 
     .kb-mhdr-t {
-      font-size: 13px;
+      font-size: 20px;
       font-weight: 800;
       letter-spacing: .07em;
       text-transform: uppercase;
     }
 
     .kb-mhdr-r {
-      font-size: 10px;
+      font-size: 13.5px;
       opacity: .8;
     }
 
@@ -776,7 +841,7 @@
       border: 1px solid rgba(255, 255, 255, .3);
       border-radius: 3px;
       padding: 2px 6px;
-      font-size: 10px;
+      font-size: 13.5px;
       cursor: pointer;
       transition: background .15s, border-color .15s;
     }
@@ -790,11 +855,11 @@
     .kb-shdr {
       background: #1a3560;
       color: #fff;
-      font-size: 9.5px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: .08em;
       text-transform: uppercase;
-      padding: 2px 8px;
+      padding: 4px 8px;
       flex-shrink: 0;
     }
 
@@ -802,11 +867,11 @@
     .kb-mhdr2 {
       background: #253d6b;
       color: #fff;
-      font-size: 9px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: .07em;
       text-transform: uppercase;
-      padding: 2px 7px;
+      padding: 4px 7px;
       flex-shrink: 0;
     }
 
@@ -845,7 +910,7 @@
 
     .kb-cl {
       display: block;
-      font-size: 7px;
+      font-size: 14px;
       color: #666;
       text-transform: uppercase;
       letter-spacing: .04em;
@@ -858,11 +923,11 @@
 
     .kb-cv {
       display: block;
-      font-size: 11px;
+      font-size: 17.5px;
       font-weight: 700;
       color: #0d1e3e;
       line-height: 1.25;
-      min-height: 13px;
+      min-height: 20px;
       /* Empêche le texte de faire grossir la cellule */
       overflow: hidden;
       text-overflow: ellipsis;
@@ -899,23 +964,23 @@
     .kb-tbl th {
       background: #2a3f6f;
       color: #fff;
-      font-size: 8px;
+      font-size: 14px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: .05em;
-      padding: 2px 4px;
+      padding: 4px 6px;
       text-align: left;
       white-space: nowrap;
       overflow: hidden;
     }
 
     .kb-tbl td {
-      font-size: 9.5px;
-      padding: 2px 4px;
+      font-size: 17.5px;
+      padding: 4px 6px;
       border-bottom: .5px solid #ddd;
       color: #111;
       vertical-align: middle;
-      height: 17px;
+      height: 26px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -947,7 +1012,7 @@
       background: rgba(61, 220, 132, .06);
       color: #3ddc84;
       text-align: center;
-      font-size: 13px;
+      font-size: 13.5px;
       cursor: pointer;
       width: 16px;
       padding: 0;
@@ -957,7 +1022,7 @@
       background: rgba(255, 77, 77, .06);
       color: rgba(255, 77, 77, .5);
       text-align: center;
-      font-size: 13px;
+      font-size: 13.5px;
       cursor: pointer;
       width: 14px;
       padding: 0;
@@ -1016,7 +1081,7 @@
       overflow: auto;
       white-space: pre-wrap;
       color: #0d1e3e;
-      font-size: 11px;
+      font-size: 17.5px;
       font-weight: 700;
       line-height: 1.25;
     }
@@ -1026,7 +1091,7 @@
       flex: 1;
       padding: 6px;
       font-family: 'Barlow Condensed', sans-serif !important;
-      font-size: 11px !important;
+      font-size: 17.5px !important;
       font-weight: 700 !important;
       color: #0d1e3e !important;
       line-height: 1.25 !important;
@@ -1044,10 +1109,10 @@
     .kb-free p,
     .kb-free span,
     .kb-free b,
-    .kb-free br + div {
+    .kb-free br+div {
       color: #0d1e3e !important;
       font-family: 'Barlow Condensed', sans-serif !important;
-      font-size: 11px !important;
+      font-size: 17.5px !important;
       font-weight: 700 !important;
       font-style: normal !important;
       line-height: 1.25 !important;
@@ -1181,92 +1246,96 @@
         <span class="toggle-arrow">◀</span>
       </button>
       <div class="left-inner">
-      <div class="l-hdr">
-        <div class="l-title">DCS Kneeboard <span style="font-size:11px;font-weight:400;opacity:.6;letter-spacing:.05em">v1.0.0</span></div>
-        <div class="l-sub">generator · mission card builder</div>
-      </div>
-
-      <div class="l-body">
-
-        <!-- SECTION : Chargement du fichier mission -->
-        <div class="acc" id="ac-miz">
-          <div class="acc-hdr" onclick="toggleAcc('ac-miz')">
-            <div class="acc-left">
-              <span class="acc-title">Mission .miz</span>
-              <span class="acc-badge" id="bdg-miz">en attente</span>
-            </div>
-            <span class="acc-arrow">▼</span>
-          </div>
-          <div class="acc-body">
-            <div class="upzone" id="upzone" onclick="document.getElementById('miz-inp').click()">
-              <input type="file" id="miz-inp" accept=".miz">
-              <div class="upzone-ico">⬆</div>
-              <div class="upzone-ttl">Glisser ou cliquer</div>
-              <div class="upzone-sub">Fichier .miz DCS</div>
-            </div>
-            <input type="file" id="img-inp" accept="image/*" style="display:none">
-            <div id="file-ok" class="file-ok" style="display:none">
-              <span>✓</span>
-              <span id="file-name" style="flex:1;font-size:11px"></span>
-              <button class="btn btn-sec btn-xs" onclick="resetApp()">×</button>
-            </div>
-          </div>
+        <div class="l-hdr">
+          <div class="l-title">DCS Kneeboard <span
+              style="font-size:11px;font-weight:400;opacity:.6;letter-spacing:.05em">v1.0.1</span></div>
+          <div class="l-sub">generator · mission card builder</div>
         </div>
 
-        <!-- SECTION : Package de vol -->
-        <div class="acc locked" id="ac-pkg">
-          <div class="acc-hdr" onclick="toggleAcc('ac-pkg')">
-            <div class="acc-left">
-              <span class="acc-title">Package</span>
-              <span class="acc-badge" id="bdg-pkg">—</span>
+        <div class="l-body">
+
+          <!-- SECTION : Chargement du fichier mission -->
+          <div class="acc" id="ac-miz">
+            <div class="acc-hdr" onclick="toggleAcc('ac-miz')">
+              <div class="acc-left">
+                <span class="acc-title">Mission .miz</span>
+                <span class="acc-badge" id="bdg-miz">en attente</span>
+              </div>
+              <span class="acc-arrow">▼</span>
             </div>
-            <span class="acc-arrow">▼</span>
-          </div>
-          <div class="acc-body">
-            <div class="row c1" style="margin-bottom:10px">
-              <div class="fld">
-                <label>Filtre Coalition</label>
-                <select id="sel-coalition" onchange="changeCoalition()">
-                  <option value="blue" selected>Bleue</option>
-                  <option value="red">Rouge</option>
-                  <option value="neutral">Neutre</option>
-                  <option value="all">Toutes</option>
-                </select>
+            <div class="acc-body">
+              <div class="upzone" id="upzone" onclick="document.getElementById('miz-inp').click()">
+                <input type="file" id="miz-inp" accept=".miz">
+                <div class="upzone-ico">⬆</div>
+                <div class="upzone-ttl">Glisser ou cliquer</div>
+                <div class="upzone-sub">Fichier .miz DCS</div>
+              </div>
+              <input type="file" id="img-inp" accept="image/*" style="display:none">
+              <div id="file-ok" class="file-ok" style="display:none">
+                <span>✓</span>
+                <span id="file-name" style="flex:1;font-size:11px"></span>
+                <button class="btn btn-sec btn-xs" onclick="resetApp()">×</button>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;margin-top:4px">
-              <input type="checkbox" id="chk-player-only" onchange="renderGroups()"
-                style="cursor:pointer;accent-color:var(--accent)">
-              <label for="chk-player-only"
-                style="font-size:9.5px;color:var(--text2);font-family:var(--mono);cursor:pointer;user-select:none">
-                Players / Clients seulement
-              </label>
+          </div>
+
+          <!-- SECTION : Package de vol -->
+          <div class="acc locked" id="ac-pkg">
+            <div class="acc-hdr" onclick="toggleAcc('ac-pkg')">
+              <div class="acc-left">
+                <span class="acc-title">Package</span>
+                <span class="acc-badge" id="bdg-pkg">—</span>
+              </div>
+              <span class="acc-arrow">▼</span>
             </div>
-            <div style="font-size:9px;color:var(--text2);font-family:var(--mono);margin-bottom:6px">
-              EXÉCUTION — cliquer pour sélectionner
-            </div>
-            <div class="grd" id="pkg-grd"></div>
-            <div style="font-size:9px;color:var(--text2);font-family:var(--mono);margin:10px 0 6px">SUPPORTS</div>
-            <div class="grd" id="sup-grd"></div>
-            <div id="no-sup" style="font-size:11px;color:var(--text3);font-style:italic;padding:4px 0">
-              Aucun support détecté
+            <div class="acc-body">
+              <div class="row c1" style="margin-bottom:10px">
+                <div class="fld">
+                  <label>Filtre Coalition</label>
+                  <select id="sel-coalition" onchange="changeCoalition()">
+                    <option value="blue" selected>Bleue</option>
+                    <option value="red">Rouge</option>
+                    <option value="neutral">Neutre</option>
+                    <option value="all">Toutes</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;margin-top:4px">
+                <input type="checkbox" id="chk-player-only" onchange="renderGroups()"
+                  style="cursor:pointer;accent-color:var(--accent)">
+                <label for="chk-player-only"
+                  style="font-size:9.5px;color:var(--text2);font-family:var(--mono);cursor:pointer;user-select:none">
+                  Players / Clients seulement
+                </label>
+              </div>
+              <div style="font-size:9px;color:var(--text2);font-family:var(--mono);margin-bottom:6px">
+                EXÉCUTION — cliquer pour sélectionner
+              </div>
+              <div class="grd" id="pkg-grd"></div>
+              <div style="font-size:9px;color:var(--text2);font-family:var(--mono);margin:10px 0 6px">SUPPORTS</div>
+              <div class="grd" id="sup-grd"></div>
+              <div id="no-sup" style="font-size:11px;color:var(--text3);font-style:italic;padding:4px 0">
+                Aucun support détecté
+              </div>
             </div>
           </div>
-        </div>
 
-      </div><!-- /l-body -->
+        </div><!-- /l-body -->
 
-      <div class="l-foot">
-        <div class="progress">
-          <div class="prog-fill" id="pfill"></div>
-        </div>
-        <div class="status" id="sbar">En attente d'un fichier .miz</div>
-      </div><!-- /l-foot -->
+        <div class="l-foot">
+          <div class="progress">
+            <div class="prog-fill" id="pfill"></div>
+          </div>
+          <div class="status" id="sbar">En attente d'un fichier .miz</div>
+        </div><!-- /l-foot -->
       </div><!-- /left-inner -->
     </div>
     <div class="right">
       <div class="r-bar">
         <span class="r-bar-title">Aperçu kneeboard</span>
+        <button class="btn-view-mode active" id="btn-2pages" onclick="setViewMode(2)" title="2 pages côte-à-côte">⬜⬜ 2
+          pages</button>
+        <button class="btn-view-mode" id="btn-1page" onclick="setViewMode(1)" title="1 page par page">⬜ 1 page</button>
         <span class="hint-edit">✏ Cliquer sur n'importe quel champ pour éditer</span>
         <div class="spacer"></div>
         <div class="page-dots" id="pdots"></div>
@@ -1277,14 +1346,18 @@
         <button class="btn btn-pri btn-sm" id="btn-pdf" disabled onclick="genPDF()">⬇ PDF</button>
       </div>
 
-      <div class="r-scroll" id="rscroll">
-        <div class="kb-pages" id="kbpages">
-          <div
-            style="text-align:center;padding:80px 20px;color:var(--text3);font-family:var(--mono);font-size:12px;letter-spacing:.1em">
-            CHARGEZ UN FICHIER .MIZ POUR COMMENCER
+      <div class="r-scroll" id="rscroll" style="overflow:auto">
+        <div id="kbpages-scaler-wrap">
+        <div id="kbpages-scaler">
+          <div class="kb-pages" id="kbpages">
+            <div
+              style="text-align:center;padding:80px 20px;color:var(--text3);font-family:var(--mono);font-size:12px;letter-spacing:.1em">
+              CHARGEZ UN FICHIER .MIZ POUR COMMENCER
+            </div>
           </div>
         </div>
-      </div>
+        </div><!-- /kbpages-scaler-wrap -->
+      </div><!-- /rscroll -->
     </div>
 
   </div><!-- /app -->
@@ -1351,7 +1424,7 @@
       while (el.firstChild) el.removeChild(el.firstChild);
       imgs.forEach(img => el.appendChild(img));
       if (rawText.trim()) {
-        rawText.split('\n').forEach(function(line, i, arr) {
+        rawText.split('\n').forEach(function (line, i, arr) {
           el.appendChild(document.createTextNode(line));
           if (i < arr.length - 1) el.appendChild(document.createElement('br'));
         });
@@ -1393,9 +1466,83 @@
        ACCORDÉONS
        ════════════════════════════════════════════════════════════════ */
 
+
+    /* ════════════════════════════════════════════════════════════════
+       AFFICHAGE ADAPTATIF — scale + modes
+       ════════════════════════════════════════════════════════════════ */
+
+    let viewMode = 2; /* 1 = page unique, 2 = côte-à-côte */
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      const pages = document.getElementById('kbpages');
+      const btn1 = document.getElementById('btn-1page');
+      const btn2 = document.getElementById('btn-2pages');
+      if (mode === 1) {
+        pages.classList.add('single');
+        btn1.classList.add('active');
+        btn2.classList.remove('active');
+      } else {
+        pages.classList.remove('single');
+        btn2.classList.add('active');
+        btn1.classList.remove('active');
+      }
+      applyScale();
+    }
+
+    function applyScale() {
+      const scaler = document.getElementById('kbpages-scaler');
+      const wrap   = document.getElementById('kbpages-scaler-wrap');
+      const scroll = document.getElementById('rscroll');
+      if (!scaler || !scroll) return;
+
+      const pageW   = 794;  /* largeur A4 px */
+      const gap     = 14;   /* gap entre les 2 pages */
+      const padH    = 24;   /* marge verticale souhaitée (haut) */
+
+      /* Largeur naturelle du contenu selon le mode */
+      const naturalW = viewMode === 2 ? (pageW * 2 + gap) : pageW;
+
+      /* Largeur disponible = largeur totale du scroll (sans padding horizontal) */
+      const availW = scroll.clientWidth;
+      const scale  = availW / naturalW;
+
+      /* Le scaler a sa largeur naturelle ; transform-origin: top center le centre
+         par rapport à sa propre largeur. Le wrap flex centre le scaler dans availW.
+         Comme naturalW * scale = availW, le scaler scaled remplit exactement le scroll. */
+      scaler.style.width     = naturalW + 'px';
+      scaler.style.transform = `scale(${scale})`;
+      scaler.style.transformOrigin = 'top center';
+
+      /* Compenser la hauteur contractée par le scale */
+      const pages = document.getElementById('kbpages');
+      if (pages) {
+        const naturalH = pages.scrollHeight;
+        scaler.style.height = `${naturalH * scale + padH}px`;
+      }
+    }
+
+    /* Observer le resize de la zone d'aperçu */
+    function initScaleObserver() {
+      const scroll = document.getElementById('rscroll');
+      if (!scroll) return;
+      const ro = new ResizeObserver(() => applyScale());
+      ro.observe(scroll);
+      /* Aussi au toggle du panneau gauche */
+      document.getElementById('left-panel').addEventListener('transitionend', applyScale);
+    }
+
     function toggleLeftPanel() {
       const panel = document.getElementById('left-panel');
       panel.classList.toggle('collapsed');
+      /* Recalcul du scale après la fin de la transition CSS (220ms) */
+      const onEnd = () => {
+        panel.removeEventListener('transitionend', onEnd);
+        applyScale();
+      };
+      panel.addEventListener('transitionend', onEnd);
+      /* Fallback si transitionend ne se déclenche pas */
+      setTimeout(applyScale, 250);
     }
 
     function toggleAcc(id) {
@@ -1456,7 +1603,7 @@
               dtcPromises.push(
                 zipEntry.async('string').then(str => {
                   try { dtcFiles.set(dtcName, JSON.parse(str)); }
-                  catch(e) { console.warn('DTC parse error for', dtcName, e); }
+                  catch (e) { console.warn('DTC parse error for', dtcName, e); }
                 })
               );
             }
@@ -1549,6 +1696,7 @@
 
       setBadge('bdg-miz', 'en attente', '');
       setStatus("En attente d'un fichier .miz", 0);
+      initScaleObserver();
     }
 
     /* ════════════════════════════════════════════════════════════════
@@ -1822,6 +1970,7 @@
        ════════════════════════════════════════════════════════════════ */
 
     function renderPreview() {
+      setTimeout(applyScale, 50);
       if (!miz) return;
       const coalFilter = document.getElementById('sel-coalition')?.value || 'blue';
 
@@ -2063,18 +2212,19 @@
       const eta = isNTP ? '' : (wp.etaDisplay != null ? wp.etaDisplay : formatEtaValue(wp.eta, wp.baseToTime));
       const note = String(wp.note || '').trim();
       const coord = wp.coord ? String(wp.coord).trim() : '';
-      const speed_alt = isNTP ? '' : `${wp.speed || '--'} / ${wp.alt || '--'}`;
+      const speed_alt = isNTP ? '' : `${wp.speed || '--'}/${wp.alt || '--'}`;
 
       const descTd = makeTd(wp.desc, { style: isNTP ? 'font-weight:700;color:#1a3560' : '' });
 
       const tds = [
         makeTd(idx + 1, { center: true }),
         descTd,
-        makeTd(isNTP ? '' : note, { style: 'font-size:8.5px;color:#333' }),
-        makeTd(coord, { style: 'font-size:8.5px;color:#333;font-family:\'Share Tech Mono\',monospace' }),
-        makeTd(isNTP ? '' : wp.hdg, { center: true }),
-        makeTd(isNTP ? '' : formatWpDistance(wp.dist), { right: true, mono: true }),
-        makeTd(speed_alt, { right: true, mono: true, style: 'font-size:8px' }),
+        makeTd(isNTP ? '' : note, { style: 'font-size:17.5px;color:#333' }),
+        /* Harmonisation police mono pour Coord. (comme Fréq.TAC) */
+        makeTd(coord, { mono: true, style: 'font-size:17.5px;color:#333' }),
+        makeTd(isNTP ? '' : wp.hdg, { center: true, mono: true }),
+        makeTd(isNTP ? '' : formatWpDistance(wp.dist), { center: true, mono: true, style: 'padding:0 4px' }),
+        makeTd(speed_alt, { right: true, mono: true, style: 'font-size:17.5px' }),
         (() => {
           const td = makeTd(eta, { center: true, mono: true });
           if (!isNTP) {
@@ -2083,7 +2233,7 @@
           }
           return td;
         })(),
-        makeTd(isNTP ? '' : (wp.tos || ''), { center: true, mono: true, style: 'font-size:8px' }),
+        makeTd(isNTP ? '' : (wp.tos || ''), { center: true, mono: true, style: 'font-size:17.5px' }),
       ];
       const del = document.createElement('td');
       del.className = 'row-del';
@@ -2141,28 +2291,20 @@
       const objSec = makeCell('Objectifs secondaires', fd.obj2);
       const objPair = document.createElement('div');
       objPair.className = 'kb-pair';
-      objPair.style.minHeight = '240px';
-      objPair.style.height = '240px';
+      objPair.style.minHeight = '185px';
+      objPair.style.height = '185px';
       objPair.append(objMain, objSec);
 
       const shdExec = mkShdr('EXECUTION DE LA MISSION / MISSION EXECUTION');
-      const execBloc = makeCell('Qui / Quand / Comment', fd.exec);
-      execBloc.querySelector('.kb-cv').style.fontSize = '11px';
+      /* Fusion "Qui / Quand / Comment" + "R.O.E." en une seule cellule */
+      const execRoeContent = [fd.exec, fd.roe].filter(Boolean).join('\n');
+      const execBloc = makeCell('Qui / Quand / Comment + R.O.E.', execRoeContent);
+      execBloc.querySelector('.kb-cv').style.fontSize = '17.5px';
       execBloc.querySelector('.kb-cv').style.lineHeight = '1.25';
       execBloc.querySelector('.kb-cv').style.color = '#0d1e3e';
       execBloc.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
       execBloc.style.flex = '1';
-      execBloc.style.minHeight = '140px';
-      const roeBloc = makeCell('R.O.E.', fd.roe);
-      roeBloc.querySelector('.kb-cv').style.fontSize = '11px';
-      roeBloc.querySelector('.kb-cv').style.lineHeight = '1.25';
-      roeBloc.querySelector('.kb-cv').style.color = '#0d1e3e';
-      roeBloc.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
-      roeBloc.style.flex = '0';
-      roeBloc.style.height = '60px';
-      roeBloc.style.minHeight = '60px';
-      roeBloc.style.maxHeight = '60px';
-      roeBloc.style.overflow = 'hidden';
+      execBloc.style.minHeight = '60px';
       const shdNav = mkShdr('FACTEUR DE NAVIGATION / ROUTING FACTOR');
       const navRow = document.createElement('div'); navRow.className = 'kb-grid5';
       navRow.style.cssText = 'border:.5px solid #c0bdb5';
@@ -2176,37 +2318,41 @@
       );
 
       const shdIntel = mkShdr('INTELLIGENCE ET MENACES');
+      /* Affichage en 2 colonnes : Menaces surface | Menaces aériennes */
       const intelSam = makeCell('Menaces surface', fd.sam);
       intelSam.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
-      intelSam.querySelector('.kb-cv').style.fontSize = '11px';
+      intelSam.querySelector('.kb-cv').style.fontSize = '17.5px';
       intelSam.querySelector('.kb-cv').style.lineHeight = '1.25';
+      intelSam.querySelector('.kb-cv').style.flex = '1';
+      intelSam.querySelector('.kb-cv').style.overflow = 'auto';
+      intelSam.style.display = 'flex';
+      intelSam.style.flexDirection = 'column';
       const intelAir = makeCell('Menaces aériennes', fd.air);
       intelAir.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
-      intelAir.querySelector('.kb-cv').style.fontSize = '11px';
+      intelAir.querySelector('.kb-cv').style.fontSize = '17.5px';
       intelAir.querySelector('.kb-cv').style.lineHeight = '1.25';
+      intelAir.querySelector('.kb-cv').style.flex = '1';
+      intelAir.querySelector('.kb-cv').style.overflow = 'auto';
+      intelAir.style.display = 'flex';
+      intelAir.style.flexDirection = 'column';
       const intelArm = makeCell('Limitation armement', fd.armt);
       const intelPair = document.createElement('div');
-      intelPair.className = 'kb-pair';
-      intelPair.style.minHeight = '240px';
-      intelPair.style.height = '240px';
+      intelPair.className = 'kb-grid2';
+      intelPair.style.cssText = 'min-height:185px;height:185px';
       intelPair.append(intelSam, intelAir);
       /* intelSam/intelAir/intelArm gardent pre-wrap pour l'affichage multilignes */
       [intelArm].forEach(c => {
         c.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
-        c.querySelector('.kb-cv').style.fontSize = '11px';
+        c.querySelector('.kb-cv').style.fontSize = '17.5px';
         c.querySelector('.kb-cv').style.lineHeight = '1.25';
         c.querySelector('.kb-cv').style.color = '#0d1e3e';
       });
 
-      body.append(shdObj, objPair, shdExec, execBloc, roeBloc, shdNav, navRow, shdIntel, intelPair, intelArm);
+      body.append(shdObj, objPair, shdExec, execBloc, shdNav, navRow, shdIntel, intelPair, intelArm);
 
       syncKbPair(objPair);
-      syncKbPair(intelPair);
       [...objPair.querySelectorAll('.kb-cv')].forEach(el => {
         ['input', 'keyup', 'paste'].forEach(evt => el.addEventListener(evt, () => setTimeout(() => syncKbPair(objPair), 0)));
-      });
-      [...intelPair.querySelectorAll('.kb-cv')].forEach(el => {
-        ['input', 'keyup', 'paste'].forEach(evt => el.addEventListener(evt, () => setTimeout(() => syncKbPair(intelPair), 0)));
       });
 
       const theatreAFs = getTheatreAirfields();
@@ -2250,7 +2396,7 @@
       imgArea.style.display = 'flex';
       imgArea.style.flexDirection = 'column';
       imgArea.style.background = '#f4f1eb';
-      imgArea.style.fontSize = '11px';
+      imgArea.style.fontSize = '17.5px';
       imgArea.style.fontWeight = '700';
       imgArea.style.color = '#0d1e3e';
       imgArea.style.lineHeight = '1.25';
@@ -2282,7 +2428,7 @@
         sel.deleteFromDocument();
         const range = sel.getRangeAt(0);
         const lines = text.split('\n');
-        lines.forEach(function(line, i) {
+        lines.forEach(function (line, i) {
           range.insertNode(document.createTextNode(line));
           range.collapse(false);
           if (i < lines.length - 1) {
@@ -2338,7 +2484,7 @@
       const hr = thead.insertRow();
       ['N°', 'Callsign', 'Nb', 'Type', 'Task/Rôle', 'Fréq.TAC', 'Fréq.INT', 'TCN', 'Airfield T/O', 'UHF', 'VHF'].forEach((h, i) => {
         const th = document.createElement('th'); th.textContent = h;
-        const widths = ['14px', '46px', '14px', '46px', '62px', '44px', '44px', '24px', '74px', '38px', '38px'];
+        const widths = ['14px', '46px', '14px', '46px', '62px', '44px', '44px', '24px', '60px', '46px', '46px'];
         th.style.width = widths[i] || '';
         th.style.textAlign = i === 1 ? 'left' : 'center';
         hr.appendChild(th);
@@ -2383,17 +2529,17 @@
       const isCarrierAf = af && af.isCarrier;
       if (!isCarrierAf) inp.setAttribute('list', dlId);
       inp.value = af ? (isCarrierAf ? [af.type || af.name || '', af.tacanCallsign ? `(${af.tacanCallsign})` : ''].filter(Boolean).join(' ') : af.name) : '';
-      inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:10px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:center';
+      inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:17.5px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:center';
       if (!isCarrierAf) inp.addEventListener('input', () => syncAirfieldFromBrief(inp, g.name));
       tdAf.appendChild(inp);
 
       const tdUhf = document.createElement('td'); tdUhf.id = afId + '-uhf'; tdUhf.contentEditable = 'true';
       tdUhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
-      tdUhf.textContent = af ? (isCarrierAf ? (af.freq || '—') : (af.uhf !== 'n/a' ? af.uhf : '—')) : '';
+      tdUhf.textContent = af ? (isCarrierAf ? (window.formatFreq(af.freq) || '—') : (af.uhf !== 'n/a' ? af.uhf : '—')) : '';
 
       const tdVhf = document.createElement('td'); tdVhf.id = afId + '-vhf'; tdVhf.contentEditable = 'true';
       tdVhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
-      tdVhf.textContent = af ? (isCarrierAf ? (af.tacan || '—')  : (af.vhf !== 'n/a' ? af.vhf : '—')) : '';
+      tdVhf.textContent = af ? (isCarrierAf ? (af.tacan || '—') : (af.vhf !== 'n/a' ? af.vhf : '—')) : '';
 
       tr.append(tdNum, tdCs, tdNb, tdType, tdTask, tdF1, tdF2, tdTcn, tdAf, tdUhf, tdVhf);
       return tr;
@@ -2469,21 +2615,31 @@
       const shdFG = mkShdr('Flight Group');
       const rowFG = document.createElement('div'); rowFG.className = 'kb-grid5';
       rowFG.style.cssText = 'border:.5px solid #c0bdb5';
+      /* Harmonisation police mono pour les cellules numériques (Radio - Tactical) */
+      const cellRadioTac = makeCell('Radio - Tactical', flightUHF);
+      cellRadioTac.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
       rowFG.append(
         makeCell('Callsign', g.callsign),
         makeCell('Aircraft', g.acType || '?'),
         makeCell('Rôle / Task', g.task || ''),
         makeCell('Mission', fd.nom || ''),
-        makeCell('Radio - Tactical', flightUHF)
+        cellRadioTac
       );
 
-      /* Times */
+      /* Times — harmonisation police mono pour T/O Time, Push Time, Tgt / TOT, Radio - Internal */
       const rowTimes = document.createElement('div'); rowTimes.className = 'kb-grid5';
       rowTimes.style.cssText = 'border:.5px solid #c0bdb5;border-top:none';
+      const cellPush = makeCell('Push Time', '');
+      cellPush.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
+      const cellTot = makeCell('Tgt / TOT', g.totTime || '');
+      cellTot.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
+      const cellRadioInt = makeCell('Radio - Internal', flightVHF);
+      cellRadioInt.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
       rowTimes.append(
         (() => {
           const c = makeCell('T/O Time', g.toTime_abs || g.toTime || '');
           const cv = c.querySelector('.kb-cv');
+          cv.style.fontFamily = "'Share Tech Mono', monospace";
           cv.dataset.toGroup = g.name;
           /* Quand T/O Time change, re-rendre le tableau WP pour recalculer les ETA */
           cv.addEventListener('input', () => {
@@ -2496,10 +2652,10 @@
           });
           return c;
         })(),
-        makeCell('Push Time', ''),
-        makeCell('Tgt / TOT', g.totTime || ''),
+        cellPush,
+        cellTot,
         makeCell('', ''),
-        makeCell('Radio - Internal', flightVHF)
+        cellRadioInt
       );
 
       /* Membres */
@@ -2558,7 +2714,7 @@
       objFree.dataset.objFreeGroup = g.name;  /* pour mise à jour coalition */
       objFree.style.whiteSpace = 'pre-wrap';
       objFree.style.color = '#0d1e3e';
-      objFree.style.fontSize = '11px';
+      objFree.style.fontSize = '17.5px';
       objFree.style.fontWeight = '700';
       objFree.style.lineHeight = '1.25';
       objFree.addEventListener('input', () => { objFree.dataset.userEdited = '1'; }, { once: true });
@@ -2611,7 +2767,7 @@
       /* ── 3. Définition de la grille CSS (12 colonnes identiques) ────────
          Même gabarit pour les en-têtes et les lignes de données.
          Les colonnes "Description" sont plus larges (minmax).              */
-      const GRID_COLS = '18px 58px minmax(80px,1fr) 18px 58px minmax(80px,1fr) 18px 58px minmax(80px,1fr) 18px 58px minmax(80px,1fr)';
+      const GRID_COLS = '18px 70px minmax(68px,1fr) 18px 70px minmax(68px,1fr) 18px 70px minmax(68px,1fr) 18px 70px minmax(68px,1fr)';
 
       /* ── 4. Wrapper principal ───────────────────────────────────────── */
       const wrapper = document.createElement('div');
@@ -2625,7 +2781,7 @@
         const h = document.createElement('div');
         /* Séparateur central entre UHF et VHF */
         const borderRight = i === 0 ? '1.5px solid #8a9abc' : '.5px solid #c0bdb5';
-        h.style.cssText = `background:#1a3560;color:#fff;font-weight:800;font-size:9px;
+        h.style.cssText = `background:#1a3560;color:#fff;font-weight:800;font-size:18px;
       letter-spacing:.07em;text-transform:uppercase;text-align:center;
       padding:2px 0;border-right:${borderRight}`;
         h.textContent = label;
@@ -2647,7 +2803,7 @@
             (grpIdx === 0 && ci === 2) ? '1.5px solid #8a9abc' :   // séparateur UHF col1/col2
               (grpIdx === 2 && ci === 2) ? '1.5px solid #8a9abc' :   // séparateur VHF col1/col2
                 '.5px solid #c0bdb5';
-          th.style.cssText = `background:#2a3f6f;color:#fff;font-size:7.5px;font-weight:700;
+          th.style.cssText = `background:#2a3f6f;color:#fff;font-size:14px;font-weight:700;
         text-align:center;padding:1px 0;border-right:${borderRight};letter-spacing:.03em`;
           th.textContent = lbl;
           colHdrRow.appendChild(th);
@@ -2687,15 +2843,15 @@
 
           /* ── Cellule N° ── */
           const tdN = document.createElement('div');
-          tdN.style.cssText = `background:${bg};font-size:8px;font-weight:700;color:#555;
-        text-align:center;padding:1px 0;border-right:.5px solid #e0e0e0;min-height:13px;
+          tdN.style.cssText = `background:${bg};font-size:17.5px;font-weight:700;color:#555;
+        text-align:center;padding:1px 0;border-right:.5px solid #e0e0e0;min-height:26px;
         display:flex;align-items:center;justify-content:center`;
           /* Toujours afficher le numéro, même si la case est vide */
           tdN.textContent = String(presetNum);
 
           /* ── Cellule Fréquence (input éditable) ── */
           const tdF = document.createElement('div');
-          tdF.style.cssText = `background:${bg};font-size:8px;font-family:'Share Tech Mono',monospace;
+          tdF.style.cssText = `background:${bg};font-size:17.5px;font-family:'Share Tech Mono',monospace;
         text-align:center;padding:1px;border-right:.5px solid #e0e0e0;
         display:flex;align-items:center;justify-content:center`;
 
@@ -2776,7 +2932,7 @@
       mapBlock.style.flexDirection = 'column';
       mapBlock.style.background = '#f4f1eb';
       mapBlock.style.minHeight = '180px';
-      mapBlock.style.fontSize = '11px';
+      mapBlock.style.fontSize = '17.5px';
       mapBlock.style.fontWeight = '700';
       mapBlock.style.color = '#0d1e3e';
       mapBlock.style.lineHeight = '1.25';
@@ -2813,7 +2969,7 @@
         sel.deleteFromDocument();
         const range = sel.getRangeAt(0);
         const lines = text.split('\n');
-        lines.forEach(function(line, i) {
+        lines.forEach(function (line, i) {
           range.insertNode(document.createTextNode(line));
           range.collapse(false);
           if (i < lines.length - 1) {
@@ -2914,20 +3070,20 @@
         const spaltLabel = pref.spalt === 'ktft' ? 'kt/ft' : 'km/h·m';
 
         const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
-        tbl.style.cssText = 'font-size:9px';
+        tbl.style.cssText = 'font-size:17.5px';
         tbl.dataset.wpGroup = g.name;
         const thead = tbl.createTHead();
         const hr = thead.insertRow();
         [
           { t: 'WP', w: '16px', a: 'center' },
-          { t: 'Desc.', w: '50px' },
-          { t: 'Task', w: '60px' },
-          { t: 'Coord.', w: '80px' },
-          { t: 'HDG', w: '24px', a: 'center' },
-          { t: distLabel, w: '32px', a: 'right' },
-          { t: spaltLabel, w: '50px', a: 'right' },
+          { t: 'Desc.', w: '34px' },
+          { t: 'Task', w: '50px' },
+          { t: 'Coord.', w: '110px' },
+          { t: 'HDG', w: '30px', a: 'center' },
+          { t: distLabel, w: '30px', a: 'left' },
+          { t: spaltLabel, w: '65px', a: 'right' },
           { t: 'ETA', w: '32px', a: 'center' },
-          { t: 'TOS', w: '22px', a: 'center' },
+          { t: 'TOS', w: '32px', a: 'center' },
           { t: '', w: '12px' },
         ].forEach(col => {
           const th = document.createElement('th'); th.textContent = col.t;
@@ -3033,7 +3189,8 @@
       ['Members', '#1', '#2', '#3', '#4'].forEach((h, i) => {
         const th = document.createElement('th');
         th.textContent = h;
-        th.style.cssText = 'background:#f3f3f3;color:#000;' + (i === 0 ? 'width:18%' : i < 4 ? 'width:20%' : 'width:22%');
+        /* Titres en gris, capitales, style cohérent avec les labels Flight Group */
+        th.style.cssText = 'background:#f3f3f3;color:#666;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;' + (i === 0 ? 'width:18%' : i < 4 ? 'width:20%' : 'width:22%');
         hr.appendChild(th);
       });
       const tbody = tbl.createTBody();
@@ -3044,9 +3201,14 @@
         { label: 'A/C n°', key: 'acNum' }
       ].forEach(row => {
         const tr = tbody.insertRow();
-        const lbl = tr.insertCell(); lbl.style.cssText = 'font-weight:700;font-size:10px'; lbl.textContent = row.label;
+        /* Labels de lignes : gris, capitales, même style que les labels Flight Group */
+        const lbl = tr.insertCell();
+        lbl.style.cssText = 'font-weight:700;font-size:14px;color:#666;text-transform:uppercase;letter-spacing:.04em';
+        lbl.textContent = row.label;
         for (let i = 0; i < 4; i++) {
           const td = tr.insertCell(); td.contentEditable = 'true';
+          /* Contenu : même taille et poids que les valeurs Flight Group */
+          td.style.cssText = 'font-size:17.5px;font-weight:700;color:#0d1e3e';
           td.textContent = (g.members && g.members[i]) ? (g.members[i][row.key] || '') : '';
         }
       });
@@ -3061,7 +3223,7 @@
       theatreAFs.forEach(af => { const opt = document.createElement('option'); opt.value = af.name; dl.appendChild(opt); });
 
       const tbl = document.createElement('table'); tbl.className = 'kb-tbl';
-      tbl.style.cssText = 'font-size:10px;border:.5px solid #c0bdb5';
+      tbl.style.cssText = 'font-size:17.5px;border:.5px solid #c0bdb5';
 
       /* On insère le datalist dans le tableau (workaround : dans tbody) */
       const thead = tbl.createTHead();
@@ -3078,7 +3240,7 @@
       const makeAfRow = (label, af) => {
         const tr = document.createElement('tr');
         const tdLbl = document.createElement('td');
-        tdLbl.style.cssText = 'font-size:9px;font-weight:700;color:#555;white-space:nowrap';
+        tdLbl.style.cssText = 'font-size:14px;font-weight:700;color:#555;white-space:nowrap';
         tdLbl.textContent = label;
 
         /* Normalisation : carrier ou aéroport classique → même interface */
@@ -3086,12 +3248,12 @@
         const carrierLabel = isCarrier
           ? [af.type || af.name || '', af.tacanCallsign ? `(${af.tacanCallsign})` : ''].filter(Boolean).join(' ')
           : '';
-        const afName  = af ? (isCarrier ? carrierLabel                                 : (af.name || '')) : '';
-        const afUhf   = af ? (isCarrier ? (af.freq  || '')                             : (af.uhf  !== 'n/a' ? af.uhf  : '')) : '';
-        const afVhf   = af ? (isCarrier ? ''                                           : (af.vhf  !== 'n/a' ? af.vhf  : '')) : '';
-        const afRwy   = af ? (isCarrier ? 'n/a'                                        : (af.rwy  || ''))  : '';
-        const afIls   = af ? (isCarrier ? (af.icls  || '')                             : (af.ils  !== 'n/a' ? af.ils  : '')) : '';
-        const afTcn   = af ? (isCarrier ? (af.tacan || '')                             : (af.tacan !== 'n/a' ? af.tacan : '')) : '';
+        const afName = af ? (isCarrier ? carrierLabel : (af.name || '')) : '';
+        const afUhf = af ? (isCarrier ? (af.freq ? window.formatFreq(af.freq) : '') : (af.uhf !== 'n/a' ? af.uhf : '')) : '';
+        const afVhf = af ? (isCarrier ? '' : (af.vhf !== 'n/a' ? af.vhf : '')) : '';
+        const afRwy = af ? (isCarrier ? 'n/a' : (af.rwy || '')) : '';
+        const afIls = af ? (isCarrier ? (af.icls || '') : (af.ils !== 'n/a' ? af.ils : '')) : '';
+        const afTcn = af ? (isCarrier ? (af.tacan || '') : (af.tacan !== 'n/a' ? af.tacan : '')) : '';
 
         const tdName = document.createElement('td');
         tdName.style.cssText = 'width:22%;text-align:left;padding-left:4px';
@@ -3099,20 +3261,26 @@
         inp.className = 'af-input';
         if (!isCarrier) inp.setAttribute('list', dlId);
         inp.value = afName;
-        inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:10px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:left';
+        inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:17.5px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:left';
         if (!isCarrier) inp.addEventListener('input', () => fillAirbaseRow(inp, g.name, label));
         tdName.appendChild(inp);
 
         /* Colonne RWY : pour un carrier on affiche "CALLSIGN" comme en-tête */
-        const tdUhf = document.createElement('td'); tdUhf.contentEditable = 'true'; tdUhf.style.textAlign = 'center';
+        /* Harmonisation police mono pour les valeurs numériques des airbases */
+        const tdUhf = document.createElement('td'); tdUhf.contentEditable = 'true';
+        tdUhf.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
         tdUhf.textContent = afUhf;
-        const tdVhf = document.createElement('td'); tdVhf.contentEditable = 'true'; tdVhf.style.textAlign = 'center';
+        const tdVhf = document.createElement('td'); tdVhf.contentEditable = 'true';
+        tdVhf.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
         tdVhf.textContent = afVhf;
-        const tdRwy = document.createElement('td'); tdRwy.contentEditable = 'true'; tdRwy.style.textAlign = 'center';
+        const tdRwy = document.createElement('td'); tdRwy.contentEditable = 'true';
+        tdRwy.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
         tdRwy.textContent = afRwy;
-        const tdIls = document.createElement('td'); tdIls.contentEditable = 'true'; tdIls.style.textAlign = 'center';
+        const tdIls = document.createElement('td'); tdIls.contentEditable = 'true';
+        tdIls.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
         tdIls.textContent = afIls;
-        const tdTcn = document.createElement('td'); tdTcn.contentEditable = 'true'; tdTcn.style.textAlign = 'center';
+        const tdTcn = document.createElement('td'); tdTcn.contentEditable = 'true';
+        tdTcn.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
         tdTcn.textContent = afTcn;
 
         /* Fond légèrement bleuté pour la ligne carrier */
@@ -3127,25 +3295,25 @@
 
       /* ── Détermination landing ── */
       const landing = g.landingAirdrome || null;
-      const toId  = g.airdrome  ? (g.airdrome.isCarrier  ? g.airdrome.unitId  : g.airdrome.name)  : null;
-      const ldId  = landing     ? (landing.isCarrier      ? landing.unitId     : landing.name)     : null;
+      const toId = g.airdrome ? (g.airdrome.isCarrier ? g.airdrome.unitId : g.airdrome.name) : null;
+      const ldId = landing ? (landing.isCarrier ? landing.unitId : landing.name) : null;
       const sameBase = toId !== null && ldId !== null && toId === ldId;
-      const noTo    = !g.airdrome;
+      const noTo = !g.airdrome;
 
       /* T/O row :
          - même base départ/arrivée  → "T/O - Landing"  + données de la base
          - pas de T/O mais landing   → "T/O - Landing"  + données landing
          - T/O sans landing          → "T/O"            + données T/O
       */
-      const toLabel  = (sameBase || noTo) && landing ? 'T/O - Landing' : 'T/O';
-      const toAf     = sameBase ? g.airdrome : (noTo && landing ? landing : g.airdrome);
+      const toLabel = (sameBase || noTo) && landing ? 'T/O - Landing' : 'T/O';
+      const toAf = sameBase ? g.airdrome : (noTo && landing ? landing : g.airdrome);
 
       /* ALT row :
          - landing différent du T/O et T/O connu → "ALT - Landing" + données landing
          - sinon ligne ALT vide
       */
-      const altLabel = (!sameBase && !noTo && landing) ? 'ALT - Landing' : 'ALT';
-      const altAf    = (!sameBase && !noTo && landing) ? landing : null;
+      const altLabel = (!sameBase && !noTo && landing) ? 'Landing' : 'LAND';
+      const altAf = (!sameBase && !noTo && landing) ? landing : null;
 
       tbody.appendChild(makeAfRow(toLabel, toAf));
       tbody.appendChild(makeAfRow(altLabel, altAf));
@@ -3161,7 +3329,7 @@
       const makeRadioBlock = (label, channels) => {
         const wrap = document.createElement('div');
         const hdr = document.createElement('div'); hdr.className = 'kb-mhdr2'; hdr.textContent = label;
-        const tbl = document.createElement('table'); tbl.className = 'kb-tbl'; tbl.style.fontSize = '14px';
+        const tbl = document.createElement('table'); tbl.className = 'kb-tbl'; tbl.style.fontSize = '17.5px';
         const thead = tbl.createTHead(); const hr = thead.insertRow();
         ['N°', 'Fréq.'].forEach((h, i) => {
           const th = document.createElement('th'); th.textContent = h;
@@ -3277,6 +3445,12 @@
        ════════════════════════════════════════════════════════════════ */
 
     async function genPDF() {
+      const scaler = document.getElementById('kbpages-scaler');
+      const prevTransform = scaler ? scaler.style.transform : '';
+      const prevHeight = scaler ? scaler.style.height : '';
+      if (scaler) { scaler.style.transform = 'scale(1)'; scaler.style.height = 'auto'; }
+      await new Promise(r => setTimeout(r, 80));
+
       setStatus('Génération PDF en cours...', 10);
       document.getElementById('btn-pdf').disabled = true;
       try {
@@ -3322,6 +3496,7 @@
 
         const nom = (fd.nom || 'kneeboard').replace(/[^a-zA-Z0-9_-]/g, '_');
         doc.save(`${nom}_kneeboard.pdf`);
+        if (scaler) { scaler.style.transform = prevTransform; scaler.style.height = prevHeight; }
         setStatus(`PDF téléchargé : ${nom}_kneeboard.pdf`, 100);
       } catch (e) {
         setStatus('Erreur PDF : ' + e.message, 0);
@@ -3331,6 +3506,12 @@
     }
 
     async function genImages() {
+      const scaler = document.getElementById('kbpages-scaler');
+      const prevTransform = scaler ? scaler.style.transform : '';
+      const prevHeight = scaler ? scaler.style.height : '';
+      if (scaler) { scaler.style.transform = 'scale(1)'; scaler.style.height = 'auto'; }
+      await new Promise(r => setTimeout(r, 80));
+
       setStatus('Génération JPG en cours...', 10);
       const pages = [...document.querySelectorAll('.kb-page')];
       const nom = (fd.nom || 'kneeboard').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -3355,6 +3536,7 @@
           /* Petit délai pour éviter le blocage navigateur sur téléchargements multiples */
           await new Promise(r => setTimeout(r, 150));
         }
+        if (scaler) { scaler.style.transform = prevTransform; scaler.style.height = prevHeight; }
         setStatus(`${pages.length} image(s) JPG téléchargée(s)`, 100);
       } catch (e) {
         setStatus('Erreur JPG : ' + e.message, 0);
