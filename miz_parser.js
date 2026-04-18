@@ -855,8 +855,12 @@
       while ((gm = groupIdRe.exec(coalBlock)) !== null) {
         const gc = getEnclosingBlock(coalBlock, gm.index);
 
-        /* v8 : retrouver l’index global et la catégorie DCS */
-        /* v8 : catégorie DCS via position dans coalBlock (fiable, évite faux positifs) */
+        /* v1.0.2 guard : les vraies entrees de groupes DCS ont toujours un bloc ["units"].
+           Les references ["groupId"] dans les params/taches (GroundEscort, EWR...)
+           n'en ont pas — on les ignore pour eviter les faux positifs de categorie. */
+        if (!gc.includes('["units"]')) continue;
+
+        /* v8 : categorie DCS via position dans coalBlock (fiable, evite faux positifs) */
         const dcsCategory = detectDcsCategory(coalBlock, gm.index);
 
         /* Nom du groupe */
@@ -1045,15 +1049,20 @@
       let gm2;
       while ((gm2 = gRe2.exec(coalBlock2)) !== null) {
         const gc2 = getEnclosingBlock(coalBlock2, gm2.index);
+
+        /* v1.0.2 guard pass2 : ignorer les refs ["groupId"] dans params/taches
+           (pas de ["units"] = pas un vrai groupe DCS) */
+        if (!gc2.includes('["units"]')) continue;
+
         const nm2 = gc2.match(/\["name"\]\s*=\s*"([^"]+)"/);
         if (!nm2) continue;
         const gname = nm2[1];
         if (seen2.has(gname)) continue;
         seen2.add(gname);
 
-        /* Détecter la catégorie DCS via la même logique que le pass1 */
-        const gidx2 = content.indexOf(gm2[0]);
-        const dcat2 = gidx2 !== -1 ? detectDcsCategory(content, gidx2) : 'unknown';
+        /* Détecter la catégorie DCS via position dans coalBlock2
+           (plus fiable que content global : évite les faux positifs inter-coalitions) */
+        const dcat2 = detectDcsCategory(coalBlock2, gm2.index);
         const isShip2 = dcat2 === 'ship';
         const isAir2 = dcat2 === 'plane' || dcat2 === 'helicopter';
 

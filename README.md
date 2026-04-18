@@ -1,4 +1,4 @@
-# DCS Kneeboard Builder
+# DCS Kneeboard Generator
 
 Generateur de kneeboards (fiches de vol) pour **DCS World**. Application web 100% front-end, sans serveur : ouvrir le fichier HTML dans un navigateur suffit.
 

@@ -1248,7 +1248,7 @@
       <div class="left-inner">
         <div class="l-hdr">
           <div class="l-title">DCS Kneeboard <span
-              style="font-size:11px;font-weight:400;opacity:.6;letter-spacing:.05em">v1.0.1</span></div>
+              style="font-size:11px;font-weight:400;opacity:.6;letter-spacing:.05em">v1.0.2</span></div>
           <div class="l-sub">generator · mission card builder</div>
         </div>
 
@@ -1381,6 +1381,12 @@
     const groupMapText = {};       /* texte saisi dans les zones carte datacard */
     let currentImageTarget = 'briefing';
 
+    /* ── Pages supplémentaires (v1.0.2) ──
+       briefExtraPages : tableau de { text, image } pour les pages extra du briefing
+       groupExtraPages : { [groupName]: [{ text, image }, ...] } pour les datacards */
+    let briefExtraPages = [];
+    const groupExtraPages = {};
+
     /**
      * Données du formulaire (valeurs saisies dans le panneau gauche).
      * Toutes les valeurs sont des chaînes brutes (jamais du HTML).
@@ -1492,7 +1498,6 @@
 
     function applyScale() {
       const scaler = document.getElementById('kbpages-scaler');
-      const wrap   = document.getElementById('kbpages-scaler-wrap');
       const scroll = document.getElementById('rscroll');
       if (!scaler || !scroll) return;
 
@@ -1503,13 +1508,15 @@
       /* Largeur naturelle du contenu selon le mode */
       const naturalW = viewMode === 2 ? (pageW * 2 + gap) : pageW;
 
-      /* Largeur disponible = largeur totale du scroll (sans padding horizontal) */
+      /* Largeur disponible = largeur totale du scroll */
       const availW = scroll.clientWidth;
-      const scale  = availW / naturalW;
 
-      /* Le scaler a sa largeur naturelle ; transform-origin: top center le centre
-         par rapport à sa propre largeur. Le wrap flex centre le scaler dans availW.
-         Comme naturalW * scale = availW, le scaler scaled remplit exactement le scroll. */
+      /* Scale : max 90% de la largeur écran, min pour qu'une page A4 reste lisible */
+      const maxScale = (window.innerWidth * 0.9) / naturalW;
+      const minScale = pageW / naturalW; /* au minimum 1 page A4 en largeur */
+      const rawScale = availW / naturalW;
+      const scale    = Math.max(minScale, Math.min(maxScale, rawScale));
+
       scaler.style.width     = naturalW + 'px';
       scaler.style.transform = `scale(${scale})`;
       scaler.style.transformOrigin = 'top center';
@@ -1615,7 +1622,8 @@
         Object.keys(groupLoadout).forEach(k => delete groupLoadout[k]);
         Object.keys(groupUnitPrefs).forEach(k => delete groupUnitPrefs[k]);
         Object.keys(groupMapText).forEach(k => delete groupMapText[k]);
-        briefingText = ''; briefingImage = null;
+        Object.keys(groupExtraPages).forEach(k => delete groupExtraPages[k]);
+        briefingText = ''; briefingImage = null; briefExtraPages = [];
 
         document.getElementById('file-ok').style.display = 'flex';
         document.getElementById('file-name').textContent = file.name;
@@ -1647,13 +1655,57 @@
     function handleImageFile(file) {
       const reader = new FileReader();
       reader.onload = () => {
+        const result = reader.result;
         if (currentImageTarget === 'briefing') {
-          briefingImage = reader.result;
+          briefingImage = result;
+          /* Injecter directement dans la zone existante sans re-render */
+          const existing = document.querySelector('[data-briefing-zone="true"]');
+          if (existing) {
+            existing.querySelectorAll('img').forEach(i => i.remove());
+            const img = document.createElement('img');
+            img.src = result;
+            img.alt = 'Image de briefing';
+            img.style.cssText = 'max-width:100%;object-fit:contain;display:block;margin-bottom:8px';
+            existing.insertBefore(img, existing.firstChild);
+            return;
+          }
         } else if (currentImageTarget && currentImageTarget.startsWith('map:')) {
           const groupName = currentImageTarget.slice(4);
-          groupMapImages[groupName] = reader.result;
-        } else {
-          briefingImage = reader.result;
+          groupMapImages[groupName] = result;
+          /* Injecter directement dans la zone carte existante */
+          const existing = document.querySelector(`[data-map-key="${CSS.escape(groupName)}"]`);
+          if (existing) {
+            existing.querySelectorAll('img').forEach(i => i.remove());
+            const img = document.createElement('img');
+            img.src = result;
+            img.alt = 'Carte de mission';
+            img.style.cssText = 'max-width:100%;object-fit:contain;display:block;margin:auto';
+            existing.insertBefore(img, existing.firstChild);
+            return;
+          }
+        } else if (currentImageTarget && currentImageTarget.startsWith('extra:')) {
+          const parts = currentImageTarget.slice(6).split(':');
+          const scope = parts[0]; /* 'brief' ou groupName */
+          const idx   = parseInt(parts[1], 10);
+          if (scope === 'brief') {
+            if (!briefExtraPages[idx]) briefExtraPages[idx] = { text: '', image: null };
+            briefExtraPages[idx].image = result;
+          } else {
+            if (!groupExtraPages[scope]) groupExtraPages[scope] = [];
+            if (!groupExtraPages[scope][idx]) groupExtraPages[scope][idx] = { text: '', image: null };
+            groupExtraPages[scope][idx].image = result;
+          }
+          /* Injecter directement dans la zone extra existante */
+          const existing = document.querySelector(`[data-extra-key="${CSS.escape(currentImageTarget)}"]`);
+          if (existing) {
+            existing.querySelectorAll('img').forEach(i => i.remove());
+            const img = document.createElement('img');
+            img.src = result;
+            img.alt = 'Image';
+            img.style.cssText = 'max-width:100%;object-fit:contain;display:block;margin-bottom:8px';
+            existing.insertBefore(img, existing.firstChild);
+            return;
+          }
         }
         renderPreview();
       };
@@ -1684,8 +1736,10 @@
       Object.keys(groupLoadout).forEach(k => delete groupLoadout[k]);
       Object.keys(groupUnitPrefs).forEach(k => delete groupUnitPrefs[k]);
       Object.keys(groupMapText).forEach(k => delete groupMapText[k]);
+      Object.keys(groupExtraPages).forEach(k => delete groupExtraPages[k]);
       dtcFiles.clear();
       briefingText = '';
+      briefExtraPages = [];
 
       const kbEl = document.getElementById('kbpages');
       kbEl.textContent = '';
@@ -1972,9 +2026,23 @@
     function renderPreview() {
       setTimeout(applyScale, 50);
       if (!miz) return;
-      const coalFilter = document.getElementById('sel-coalition')?.value || 'blue';
 
-      const pages = document.getElementById('kbpages');
+      /* ── Sauvegarder les valeurs éditées via data-cell-id stables ──────── */
+      const saved = new Map();
+      const kbpages = document.getElementById('kbpages');
+
+      kbpages.querySelectorAll('[data-cell-id]').forEach(el => {
+        const key = el.dataset.cellId;
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+          saved.set(key, el.value);
+        } else {
+          saved.set(key, el.innerHTML);
+        }
+      });
+
+      /* ── Reconstruction du DOM ── */
+      const coalFilter = document.getElementById('sel-coalition')?.value || 'blue';
+      const pages = kbpages;
       pages.textContent = '';
 
       const selectedPkg = [...selPkg].map(name => miz.groups.find(g => g.name === name)).filter(Boolean);
@@ -2053,17 +2121,31 @@
         pages.appendChild(mkDatacardPair(g, idx));
       });
 
-      /* Navigation par points : 1 dot per briefing, 1 dot per datacard pair */
+      /* Navigation par points : 1 dot par kb-wrap (briefing + extras + datacards + leurs extras) */
       const dots = document.getElementById('pdots');
       dots.textContent = '';
-      const n = 1 + selectedGroups.length;
-      for (let i = 0; i < n; i++) {
+      const wraps = [...pages.querySelectorAll('.kb-wrap')];
+      wraps.forEach((wrap, i) => {
         const dot = document.createElement('div');
+        const lbl = wrap.querySelector('.kb-plbl');
+        const title = lbl ? lbl.textContent : `Section ${i + 1}`;
         dot.className = 'pdot' + (i === 0 ? ' on' : '');
-        dot.title = i === 0 ? 'Briefing' : `Datacard ${i}`;
-        dot.onclick = () => gotoPage(i);
+        dot.title = title;
+        dot.onclick = () => gotoWrap(i);
         dots.appendChild(dot);
-      }
+      });
+
+      /* ── Restaurer via data-cell-id stables ──────────────────────────── */
+      pages.querySelectorAll('[data-cell-id]').forEach(el => {
+        const key = el.dataset.cellId;
+        if (!saved.has(key)) return;
+        const val = saved.get(key);
+        if ('value' in el && el.tagName === 'INPUT') {
+          el.value = val;
+        } else if (el.innerHTML !== val) {
+          el.innerHTML = val;
+        }
+      });
     }
 
     function gotoPage(i) {
@@ -2072,21 +2154,29 @@
       document.querySelectorAll('.pdot').forEach((d, j) => d.classList.toggle('on', j === i));
     }
 
+    function gotoWrap(i) {
+      const wraps = [...document.querySelectorAll('#kbpages .kb-wrap')];
+      if (wraps[i]) wraps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelectorAll('.pdot').forEach((d, j) => d.classList.toggle('on', j === i));
+    }
+
     /* Synchronisation des dots lors du scroll */
     const ioObserver = new IntersectionObserver(entries => {
       entries.forEach(e => {
         if (e.isIntersecting) {
-          const pgs = [...document.querySelectorAll('.kb-page')];
-          const idx = Math.floor(pgs.indexOf(e.target) / 2);
+          const wraps = [...document.querySelectorAll('#kbpages .kb-wrap')];
+          const idx = wraps.indexOf(e.target);
           if (idx >= 0) document.querySelectorAll('.pdot').forEach((d, j) => d.classList.toggle('on', j === idx));
         }
-      }); // <-- Ajoute la fermeture du forEach ici
+      });
     }, { threshold: .4, root: document.getElementById('rscroll') });
 
     const mutObserver = new MutationObserver(() => {
-      document.querySelectorAll('.kb-page').forEach(p => ioObserver.observe(p));
+      document.querySelectorAll('#kbpages .kb-wrap').forEach(w => ioObserver.observe(w));
     });
-    mutObserver.observe(document.getElementById('kbpages'), { childList: true });
+    mutObserver.observe(document.getElementById('kbpages'), { childList: true, subtree: true });
+
+    /* data-cell-id stables sur tous les éléments éditables — pas besoin de marquage dynamique */
 
     /* ════════════════════════════════════════════════════════════════
        CONSTRUCTEURS DE CELLULES (DOM sécurisé)
@@ -2100,11 +2190,12 @@
      * @param {Function} [onblur] - Callback appelé avec la nouvelle valeur
      * @returns {HTMLElement}
      */
-    function makeCell(label, value, onblur) {
+    function makeCell(label, value, onblur, cellId) {
       const cell = document.createElement('div'); cell.className = 'kb-c';
       const lbl = document.createElement('span'); lbl.className = 'kb-cl'; lbl.textContent = label;
       const val = document.createElement('span'); val.className = 'kb-cv'; val.textContent = value || '';
       val.contentEditable = 'true';
+      if (cellId) val.dataset.cellId = cellId;
       if (onblur) val.addEventListener('blur', () => onblur(val.textContent));
       cell.append(lbl, val);
       return cell;
@@ -2157,6 +2248,7 @@
       if (opts.center) td.style.textAlign = 'center';
       if (opts.right) td.style.textAlign = 'right';
       if (opts.bold) td.style.fontWeight = '800';
+      if (opts.cellId) td.dataset.cellId = opts.cellId;
       return td;
     }
 
@@ -2204,36 +2296,29 @@
       const tr = document.createElement('tr');
       const isNTP = wp.isNavTarget === true;
 
-      /* Style visuel distinctif pour les NavTargetPoints */
-      if (isNTP) {
-        tr.style.cssText = 'background:#e8f0fa !important';
-      }
-
-      const eta = isNTP ? '' : (wp.etaDisplay != null ? wp.etaDisplay : formatEtaValue(wp.eta, wp.baseToTime));
+      const eta = wp.etaDisplay != null ? wp.etaDisplay : formatEtaValue(wp.eta, wp.baseToTime);
       const note = String(wp.note || '').trim();
       const coord = wp.coord ? String(wp.coord).trim() : '';
-      const speed_alt = isNTP ? '' : `${wp.speed || '--'}/${wp.alt || '--'}`;
+      const speed_alt = `${wp.speed || '--'}/${wp.alt || '--'}`;
 
-      const descTd = makeTd(wp.desc, { style: isNTP ? 'font-weight:700;color:#1a3560' : '' });
+      const descTd = makeTd(wp.desc, { cellId: `wp-${safeId(gname)}-${idx}-desc` });
 
+      const wid = `wp-${safeId(gname)}-${idx}`;
       const tds = [
-        makeTd(idx + 1, { center: true }),
+        makeTd(idx + 1, { center: true, cellId: `${wid}-num` }),
         descTd,
-        makeTd(isNTP ? '' : note, { style: 'font-size:17.5px;color:#333' }),
-        /* Harmonisation police mono pour Coord. (comme Fréq.TAC) */
-        makeTd(coord, { mono: true, style: 'font-size:17.5px;color:#333' }),
-        makeTd(isNTP ? '' : wp.hdg, { center: true, mono: true }),
-        makeTd(isNTP ? '' : formatWpDistance(wp.dist), { center: true, mono: true, style: 'padding:0 4px' }),
-        makeTd(speed_alt, { right: true, mono: true, style: 'font-size:17.5px' }),
+        makeTd(note, { style: 'font-size:17.5px;color:#333', cellId: `${wid}-note` }),
+        makeTd(coord, { mono: true, style: 'font-size:17.5px;color:#333', cellId: `${wid}-coord` }),
+        makeTd(wp.hdg || '', { center: true, mono: true, cellId: `${wid}-hdg` }),
+        makeTd(formatWpDistance(wp.dist), { center: true, mono: true, style: 'padding:0 4px', cellId: `${wid}-dist` }),
+        makeTd(speed_alt, { right: true, mono: true, style: 'font-size:17.5px', cellId: `${wid}-spalt` }),
         (() => {
-          const td = makeTd(eta, { center: true, mono: true });
-          if (!isNTP) {
-            td.addEventListener('input', () => { td.dataset.manual = '1'; });
-            td.dataset.etaCalc = eta;
-          }
+          const td = makeTd(eta, { center: true, mono: true, cellId: `${wid}-eta` });
+          td.addEventListener('input', () => { td.dataset.manual = '1'; });
+          td.dataset.etaCalc = eta;
           return td;
         })(),
-        makeTd(isNTP ? '' : (wp.tos || ''), { center: true, mono: true, style: 'font-size:17.5px' }),
+        makeTd(wp.tos || '', { center: true, mono: true, style: 'font-size:17.5px', cellId: `${wid}-tos` }),
       ];
       const del = document.createElement('td');
       del.className = 'row-del';
@@ -2248,15 +2333,217 @@
        PAGE 1 + 2 : BRIEFING MISSION
        ════════════════════════════════════════════════════════════════ */
 
-    function mkBriefPair(pkg, sup) {
-      const wrap = document.createElement('div'); wrap.className = 'kb-wrap';
-      const lbl = document.createElement('div'); lbl.className = 'kb-plbl';
-      lbl.textContent = 'PAGE 01 & 02 — BRIEFING MISSION';
-      wrap.appendChild(lbl);
+    /* ════════════════════════════════════════════════════════════════
+       PAGE SUPPLÉMENTAIRE — Notes & informations diverses (v1.0.2)
+       scopeKey : 'brief' ou g.name
+       idx      : index dans le tableau d'extras
+       showAdd  : true si c'est la dernière page (affiche le bouton +)
+       onAdd    : callback pour ajouter une page
+    ════════════════════════════════════════════════════════════════ */
+    function mkExtraPage(scopeKey, idx, showAdd, onAdd) {
+      const isBrief = scopeKey === 'brief';
+      const store   = isBrief ? briefExtraPages : (groupExtraPages[scopeKey] || []);
+      const data    = store[idx] || { text: '', image: null };
+      const extraKey = `extra:${scopeKey}:${idx}`;
 
-      wrap.appendChild(mkBriefPage1(pkg, sup));
-      wrap.appendChild(mkBriefPage2());
+      const page = document.createElement('div'); page.className = 'kb-page';
+
+      /* En-tête */
+      const hdr = document.createElement('div'); hdr.className = 'kb-mhdr';
+      const ht  = document.createElement('span'); ht.className = 'kb-mhdr-t';
+      ht.textContent = isBrief
+        ? `Briefing — Notes supplémentaires (${idx + 1})`
+        : `Notes supplémentaires (${idx + 1})`;
+      const right = document.createElement('div');
+      right.style.cssText = 'display:flex;align-items:center;gap:4px';
+
+      /* Bouton Image */
+      const btnImg = document.createElement('button');
+      btnImg.className = 'kb-img-btn'; btnImg.type = 'button';
+      btnImg.textContent = '🖼 Image';
+      btnImg.onclick = () => selectImage(extraKey);
+
+      /* Bouton Clear image */
+      const btnClr = document.createElement('button');
+      btnClr.className = 'kb-img-btn no-print'; btnClr.type = 'button';
+      btnClr.textContent = '✕ Clear';
+
+      /* Bouton − Supprimer cette page */
+      const btnDel = document.createElement('button');
+      btnDel.className = 'kb-img-btn no-print'; btnDel.type = 'button';
+      btnDel.textContent = '− Page';
+      btnDel.style.color = '#ff6b6b';
+      btnDel.style.borderColor = 'rgba(255,77,77,.4)';
+      btnDel.onclick = () => {
+        if (isBrief) briefExtraPages.splice(idx, 1);
+        else if (groupExtraPages[scopeKey]) groupExtraPages[scopeKey].splice(idx, 1);
+        renderPreview();
+      };
+
+      right.append(btnImg, btnClr, btnDel);
+
+      /* Bouton + sur la dernière page */
+      if (showAdd && onAdd) {
+        const btnAdd = document.createElement('button');
+        btnAdd.className = 'kb-img-btn no-print'; btnAdd.type = 'button';
+        btnAdd.textContent = '＋ Page';
+        btnAdd.onclick = onAdd;
+        right.append(btnAdd);
+      }
+
+      hdr.append(ht, right);
+
+      /* Zone de contenu libre */
+      const area = document.createElement('div');
+      area.className = 'kb-free';
+      area.style.cssText = 'flex:1;display:flex;flex-direction:column;background:#f4f1eb;font-size:17.5px;font-weight:700;color:#0d1e3e;line-height:1.25;white-space:pre-wrap';
+      area.contentEditable = 'true';
+      area.dataset.placeholder = 'Zone libre : texte ou image.';
+      area.dataset.extraKey = extraKey;
+      area.dataset.cellId = extraKey;
+
+      if (data.image) {
+        const img = document.createElement('img');
+        img.src = data.image;
+        img.style.cssText = 'max-width:100%;object-fit:contain;display:block;margin-bottom:8px';
+        area.appendChild(img);
+      }
+      if (data.text) {
+        data.image ? area.appendChild(document.createTextNode(data.text)) : (area.textContent = data.text);
+      }
+
+      area.addEventListener('input', () => { data.text = area.innerText || ''; });
+      area.addEventListener('blur',  () => sanitizeFree(area, t => { data.text = t; }));
+      area.addEventListener('paste', e => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        sel.deleteFromDocument();
+        const range = sel.getRangeAt(0);
+        text.split('\n').forEach((line, i, arr) => {
+          range.insertNode(document.createTextNode(line));
+          range.collapse(false);
+          if (i < arr.length - 1) {
+            const br = document.createElement('br');
+            range.insertNode(br); range.setStartAfter(br); range.collapse(true);
+          }
+        });
+        sel.removeAllRanges(); sel.addRange(range);
+        data.text = area.innerText || '';
+      });
+      area.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const br = document.createElement('br');
+        range.insertNode(br);
+        if (!br.nextSibling || (br.nextSibling.nodeType === Node.TEXT_NODE && br.nextSibling.textContent === ''))
+          br.parentNode.insertBefore(document.createElement('br'), br.nextSibling);
+        range.setStartAfter(br); range.collapse(true);
+        sel.removeAllRanges(); sel.addRange(range);
+        data.text = area.innerText || '';
+      });
+
+      btnClr.onclick = () => {
+        data.image = null;
+        area.querySelectorAll('img').forEach(i => i.remove());
+      };
+
+      page.append(hdr, area);
+      return page;
+    }
+
+    /* ────────────────────────────────────────────────────────────────
+       Helper : crée un kb-wrap avec label pour une paire ou page solo
+    ──────────────────────────────────────────────────────────────── */
+    function mkWrap(labelText, ...pages) {
+      const wrap = document.createElement('div'); wrap.className = 'kb-wrap';
+      const lbl  = document.createElement('div'); lbl.className = 'kb-plbl';
+      lbl.textContent = labelText;
+      wrap.appendChild(lbl);
+      pages.forEach(p => wrap.appendChild(p));
       return wrap;
+    }
+
+    /* ────────────────────────────────────────────────────────────────
+       Regroupe un tableau de pages extra en wraps :
+       - paires côte à côte (index pair+impair ensemble)
+       - page seule si nombre impair de pages (dernière seule à gauche)
+       Le bouton + apparaît sur la dernière page du dernier wrap.
+    ──────────────────────────────────────────────────────────────── */
+    function buildExtraWraps(scopeKey, extras, onAdd, labelFn) {
+      const wraps = [];
+      const n = extras.length;
+      for (let i = 0; i < n; i += 2) {
+        const isLast = (i >= n - 2); /* dernier wrap */
+        const hasPair = (i + 1 < n);
+        if (hasPair) {
+          /* Deux pages côte à côte : + sur la droite si c'est le dernier wrap */
+          const pLeft  = mkExtraPage(scopeKey, i,     false,  null);
+          const pRight = mkExtraPage(scopeKey, i + 1, isLast, isLast ? onAdd : null);
+          wraps.push(mkWrap(labelFn(i, i + 1), pLeft, pRight));
+        } else {
+          /* Page seule à gauche : + dessus si c'est le dernier wrap */
+          const pSolo = mkExtraPage(scopeKey, i, isLast, isLast ? onAdd : null);
+          wraps.push(mkWrap(labelFn(i, null), pSolo));
+        }
+      }
+      return wraps;
+    }
+
+    function mkBriefPair(pkg, sup) {
+      const container = document.createDocumentFragment();
+      const onAdd = () => { briefExtraPages.push({ text: '', image: null }); renderPreview(); };
+      const n = briefExtraPages.length;
+
+      /* Pages 01 & 02 — briefing principal
+         Si pas de pages extra, le bouton + est sur mkBriefPage2 */
+      container.appendChild(mkWrap('PAGE 01 & 02 — BRIEFING MISSION',
+        mkBriefPage1(pkg, sup), mkBriefPage2(n === 0 ? onAdd : null)));
+
+      /* Pages extra en paires */
+      const extraWraps = buildExtraWraps(
+        'brief', briefExtraPages, onAdd,
+        (a, b) => b !== null
+          ? `BRIEFING — NOTES SUPPLÉMENTAIRES ${a + 1} & ${b + 1}`
+          : `BRIEFING — NOTES SUPPLÉMENTAIRES ${a + 1}`
+      );
+      extraWraps.forEach(w => container.appendChild(w));
+
+      return container;
+    }
+
+    function mkDatacardPair(g, idx) {
+      const container = document.createDocumentFragment();
+      const onAdd = () => {
+        if (!groupExtraPages[g.name]) groupExtraPages[g.name] = [];
+        groupExtraPages[g.name].push({ text: '', image: null });
+        renderPreview();
+      };
+      const extras = groupExtraPages[g.name] || [];
+      const n = extras.length;
+
+      /* Pages principales de la datacard
+         Si pas de pages extra, le bouton + est sur mkDatacardPage2 */
+      container.appendChild(mkWrap(
+        `PAGE ${String(idx * 2 + 3).padStart(2, '0')} & ${String(idx * 2 + 4).padStart(2, '0')} — DATACARD #${idx + 1} — ${g.callsign.toUpperCase()}`,
+        mkDatacardPage1(g, idx), mkDatacardPage2(g, idx, n === 0 ? onAdd : null)
+      ));
+
+      /* Pages extra en paires */
+      const extraWraps = buildExtraWraps(
+        g.name, extras, onAdd,
+        (a, b) => b !== null
+          ? `DATACARD #${idx + 1} — ${g.callsign.toUpperCase()} — NOTES ${a + 1} & ${b + 1}`
+          : `DATACARD #${idx + 1} — ${g.callsign.toUpperCase()} — NOTES SUPPLÉMENTAIRES ${a + 1}`
+      );
+      extraWraps.forEach(w => container.appendChild(w));
+
+      return container;
     }
 
     function mkBriefPage1(pkg, sup) {
@@ -2270,25 +2557,25 @@
       const row1 = document.createElement('div'); row1.className = 'kb-grid4';
       row1.style.cssText = 'border:.5px solid #c0bdb5';
       row1.append(
-        makeCell('Nom mission', fd.nom),
-        makeCell('Date/Heure IRL', fd.irl),
-        makeCell('Date/Heure IVL', fd.ivl),
-        makeCell('Carte / Théatre', fd.carte || miz.theatre || '')
+        makeCell('Nom mission', fd.nom, null, 'brief-nom'),
+        makeCell('Date/Heure IRL', fd.irl, null, 'brief-irl'),
+        makeCell('Date/Heure IVL', fd.ivl, null, 'brief-ivl'),
+        makeCell('Carte / Théatre', fd.carte || miz.theatre || '', null, 'brief-carte')
       );
 
       const row2 = document.createElement('div'); row2.className = 'kb-grid2';
       row2.style.cssText = 'grid-template-columns:2fr 1fr;border:.5px solid #c0bdb5;border-top:none';
       row2.append(
-        makeCell('Conditions météo', [fd.qnh, fd.wind, fd.temp, fd.vis].filter(Boolean).join(' | ')),
-        makeCell('Sunrise-Sunset', [fd.sr, fd.ss].filter(Boolean).join(' / '))
+        makeCell('Conditions météo', [fd.qnh, fd.wind, fd.temp, fd.vis].filter(Boolean).join(' | '), null, 'brief-meteo'),
+        makeCell('Sunrise-Sunset', [fd.sr, fd.ss].filter(Boolean).join(' / '), null, 'brief-sunrise')
       );
 
       const body = document.createElement('div');
       body.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;gap:1px';
 
       const shdObj = mkShdr('Objectifs / Objectives');
-      const objMain = makeCell('Objectifs principaux', fd.obj1);
-      const objSec = makeCell('Objectifs secondaires', fd.obj2);
+      const objMain = makeCell('Objectifs principaux', fd.obj1, null, 'brief-obj1');
+      const objSec = makeCell('Objectifs secondaires', fd.obj2, null, 'brief-obj2');
       const objPair = document.createElement('div');
       objPair.className = 'kb-pair';
       objPair.style.minHeight = '185px';
@@ -2296,9 +2583,8 @@
       objPair.append(objMain, objSec);
 
       const shdExec = mkShdr('EXECUTION DE LA MISSION / MISSION EXECUTION');
-      /* Fusion "Qui / Quand / Comment" + "R.O.E." en une seule cellule */
       const execRoeContent = [fd.exec, fd.roe].filter(Boolean).join('\n');
-      const execBloc = makeCell('Qui / Quand / Comment + R.O.E.', execRoeContent);
+      const execBloc = makeCell('Qui / Quand / Comment + R.O.E.', execRoeContent, null, 'brief-exec');
       execBloc.querySelector('.kb-cv').style.fontSize = '17.5px';
       execBloc.querySelector('.kb-cv').style.lineHeight = '1.25';
       execBloc.querySelector('.kb-cv').style.color = '#0d1e3e';
@@ -2310,16 +2596,15 @@
       navRow.style.cssText = 'border:.5px solid #c0bdb5';
       const tankers = sup.filter(g => /tanker|kc/i.test(g.name) || /kc/i.test(g.acType || ''));
       navRow.append(
-        makeCell('Bullseye', fd.bull),
-        makeCell('CAP ZONE', fd.cap),
-        makeCell('RDV Point', fd.pen || ''),
-        makeCell('Zone Rav. #1', tankers[0] ? `${tankers[0].callsign} ${window.formatFreq(tankers[0].freq)}` : ''),
-        makeCell('Zone Rav. #2', tankers[1] ? `${tankers[1].callsign} ${window.formatFreq(tankers[1].freq)}` : '')
+        makeCell('Bullseye', fd.bull, null, 'brief-bull'),
+        makeCell('CAP ZONE', fd.cap, null, 'brief-cap'),
+        makeCell('RDV Point', fd.pen || '', null, 'brief-pen'),
+        makeCell('Zone Rav. #1', tankers[0] ? `${tankers[0].callsign} ${window.formatFreq(tankers[0].freq)}` : '', null, 'brief-rav1'),
+        makeCell('Zone Rav. #2', tankers[1] ? `${tankers[1].callsign} ${window.formatFreq(tankers[1].freq)}` : '', null, 'brief-rav2')
       );
 
       const shdIntel = mkShdr('INTELLIGENCE ET MENACES');
-      /* Affichage en 2 colonnes : Menaces surface | Menaces aériennes */
-      const intelSam = makeCell('Menaces surface', fd.sam);
+      const intelSam = makeCell('Menaces surface', fd.sam, null, 'brief-sam');
       intelSam.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
       intelSam.querySelector('.kb-cv').style.fontSize = '17.5px';
       intelSam.querySelector('.kb-cv').style.lineHeight = '1.25';
@@ -2327,7 +2612,7 @@
       intelSam.querySelector('.kb-cv').style.overflow = 'auto';
       intelSam.style.display = 'flex';
       intelSam.style.flexDirection = 'column';
-      const intelAir = makeCell('Menaces aériennes', fd.air);
+      const intelAir = makeCell('Menaces aériennes', fd.air, null, 'brief-air');
       intelAir.querySelector('.kb-cv').style.whiteSpace = 'pre-wrap';
       intelAir.querySelector('.kb-cv').style.fontSize = '17.5px';
       intelAir.querySelector('.kb-cv').style.lineHeight = '1.25';
@@ -2335,7 +2620,7 @@
       intelAir.querySelector('.kb-cv').style.overflow = 'auto';
       intelAir.style.display = 'flex';
       intelAir.style.flexDirection = 'column';
-      const intelArm = makeCell('Limitation armement', fd.armt);
+      const intelArm = makeCell('Limitation armement', fd.armt, null, 'brief-armt');
       const intelPair = document.createElement('div');
       intelPair.className = 'kb-grid2';
       intelPair.style.cssText = 'min-height:185px;height:185px';
@@ -2369,7 +2654,7 @@
       return page;
     }
 
-    function mkBriefPage2() {
+    function mkBriefPage2(onAdd) {
       const page = document.createElement('div'); page.className = 'kb-page';
       const hdr = document.createElement('div'); hdr.className = 'kb-mhdr';
       const ht = document.createElement('span'); ht.className = 'kb-mhdr-t'; ht.textContent = 'Mission Briefing / Notes et dessins additionnels';
@@ -2384,10 +2669,16 @@
       btnClear.type = 'button';
       btnClear.textContent = '✕ Clear';
       btnClear.title = 'Effacer l\'image du briefing';
-      btnClear.onclick = () => { briefingImage = null; renderPreview(); };
+      /* Bouton + page supplémentaire */
+      const btnAdd = document.createElement('button');
+      btnAdd.className = 'kb-img-btn no-print';
+      btnAdd.type = 'button';
+      btnAdd.textContent = '＋ Page';
+      btnAdd.title = 'Ajouter une page de notes supplémentaire au briefing';
+      btnAdd.onclick = onAdd || (() => { briefExtraPages.push({ text: '', image: null }); renderPreview(); });
       const right = document.createElement('div');
       right.style.display = 'flex'; right.style.alignItems = 'center'; right.style.gap = '4px';
-      right.append(btn, btnClear);
+      right.append(btn, btnClear, btnAdd);
       hdr.append(ht, right);
 
       const imgArea = document.createElement('div');
@@ -2403,6 +2694,8 @@
       imgArea.style.whiteSpace = 'pre-wrap';
       imgArea.contentEditable = 'true';
       imgArea.dataset.placeholder = 'Zone libre : texte ou image.';
+      imgArea.dataset.briefingZone = 'true';
+      imgArea.dataset.cellId = 'brief-img-zone';
 
       if (briefingImage) {
         const img = document.createElement('img');
@@ -2468,7 +2761,6 @@
       /* Clear : efface seulement l'image, pas le texte */
       btnClear.onclick = () => {
         briefingImage = null;
-        /* Supprimer uniquement l'img dans la zone sans recharger toute la page */
         const imgs = imgArea.querySelectorAll('img');
         imgs.forEach(i => i.remove());
       };
@@ -2497,6 +2789,7 @@
           const tr = tbody.insertRow();
           for (let j = 0; j < 11; j++) {
             const td = tr.insertCell(); td.contentEditable = 'true';
+            td.dataset.cellId = `pkg-empty-${i}-col${j}`;
             td.style.textAlign = j === 1 ? 'left' : 'center';
           }
         }
@@ -2508,23 +2801,25 @@
       const tr = document.createElement('tr');
       const af = g.airdrome;
       const afId = 'brief-af-' + safeId(g.name);
+      const pg = 'pkg-' + safeId(g.name);
 
-      const tdNum = makeTd(i + 1, { center: true });
-      const tdCs = makeTd(g.callsign, { bold: true });
-      const tdNb = makeTd(g.numUnits, { center: true });
-      const tdType = makeTd(g.acType || '?', { center: true });
-      const tdTask = makeTd(g.task || '', { center: true });
-      const tdF1 = makeTd(window.formatFreq(g.freq), { mono: true, center: true });
+      const tdNum = makeTd(i + 1, { center: true, cellId: `${pg}-num` });
+      const tdCs = makeTd(g.callsign, { bold: true, cellId: `${pg}-cs` });
+      const tdNb = makeTd(g.numUnits, { center: true, cellId: `${pg}-nb` });
+      const tdType = makeTd(g.acType || '?', { center: true, cellId: `${pg}-type` });
+      const tdTask = makeTd(g.task || '', { center: true, cellId: `${pg}-task` });
+      const tdF1 = makeTd(window.formatFreq(g.freq), { mono: true, center: true, cellId: `${pg}-f1` });
       const flightVHF = (g.channelsVHF && g.channelsVHF[0]) ? window.formatFreq(g.channelsVHF[0]) : '';
-      const tdF2 = makeTd(flightVHF, { mono: true, center: true });
+      const tdF2 = makeTd(flightVHF, { mono: true, center: true, cellId: `${pg}-f2` });
       tdF2.contentEditable = 'true';
-      const tdTcn = makeTd(g.tacan || '—', { center: true });
+      const tdTcn = makeTd(g.tacan || '—', { center: true, cellId: `${pg}-tcn` });
 
       /* Input avec datalist pour l'airfield */
       const tdAf = document.createElement('td');
       tdAf.style.textAlign = 'center';
       const inp = document.createElement('input');
       inp.id = afId;
+      inp.dataset.cellId = afId; /* stable ID for save/restore */
       inp.className = 'af-input';
       const isCarrierAf = af && af.isCarrier;
       if (!isCarrierAf) inp.setAttribute('list', dlId);
@@ -2533,11 +2828,11 @@
       if (!isCarrierAf) inp.addEventListener('input', () => syncAirfieldFromBrief(inp, g.name));
       tdAf.appendChild(inp);
 
-      const tdUhf = document.createElement('td'); tdUhf.id = afId + '-uhf'; tdUhf.contentEditable = 'true';
+      const tdUhf = document.createElement('td'); tdUhf.id = afId + '-uhf'; tdUhf.dataset.cellId = afId + '-uhf'; tdUhf.contentEditable = 'true';
       tdUhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
       tdUhf.textContent = af ? (isCarrierAf ? (window.formatFreq(af.freq) || '—') : (af.uhf !== 'n/a' ? af.uhf : '—')) : '';
 
-      const tdVhf = document.createElement('td'); tdVhf.id = afId + '-vhf'; tdVhf.contentEditable = 'true';
+      const tdVhf = document.createElement('td'); tdVhf.id = afId + '-vhf'; tdVhf.dataset.cellId = afId + '-vhf'; tdVhf.contentEditable = 'true';
       tdVhf.style.cssText = 'font-family:"Share Tech Mono",monospace;text-align:center';
       tdVhf.textContent = af ? (isCarrierAf ? (af.tacan || '—') : (af.vhf !== 'n/a' ? af.vhf : '—')) : '';
 
@@ -2564,9 +2859,12 @@
           const g = sup[i];
           const orbitPos = (g.tankerOrbit && g.tankerOrbit.posFromBull) ? g.tankerOrbit.posFromBull : '';
           const orbitAlt = (g.tankerOrbit && g.tankerOrbit.altFt) ? `${g.tankerOrbit.altFt}ft / ${g.tankerOrbit.speedKts}kts` : '';
+          const sg = 'sup-' + safeId(g.name);
+          const colKeys = ['num','cs','nb','type','task','f1','f2','tcn','orbit-alt','orbit-pos'];
           const row = [i + 1, g.callsign, g.numUnits || '', g.acType || '', g.task || '', window.formatFreq(g.freq), '', g.tacan || '', orbitAlt, orbitPos];
           row.forEach((v, j) => {
             const td = tr.insertCell(); td.contentEditable = 'true'; td.textContent = String(v || '');
+            td.dataset.cellId = `${sg}-${colKeys[j]}`;
             td.style.textAlign = j === 1 ? 'left' : 'center';
             if (j === 1) td.style.fontWeight = '800';
             if ([5, 6, 7].includes(j)) td.style.fontFamily = "'Share Tech Mono',monospace";
@@ -2574,6 +2872,7 @@
         } else {
           for (let j = 0; j < 10; j++) {
             const td = tr.insertCell(); td.contentEditable = 'true';
+            td.dataset.cellId = `sup-empty-${i}-col${j}`;
             td.style.textAlign = j === 1 ? 'left' : 'center';
           }
         }
@@ -2584,16 +2883,6 @@
     /* ════════════════════════════════════════════════════════════════
        PAGE 3+4 : DATACARD PAR GROUPE
        ════════════════════════════════════════════════════════════════ */
-
-    function mkDatacardPair(g, idx) {
-      const wrap = document.createElement('div'); wrap.className = 'kb-wrap';
-      const lbl = document.createElement('div'); lbl.className = 'kb-plbl';
-      lbl.textContent = `PAGE ${String(idx * 2 + 3).padStart(2, '0')} & ${String(idx * 2 + 4).padStart(2, '0')} — DATACARD #${idx + 1} — ${g.callsign.toUpperCase()}`;
-      wrap.appendChild(lbl);
-      wrap.appendChild(mkDatacardPage1(g, idx));
-      wrap.appendChild(mkDatacardPage2(g, idx));
-      return wrap;
-    }
 
     function mkDatacardPage1(g, idx) {
       const page = document.createElement('div'); page.className = 'kb-page';
@@ -2611,33 +2900,34 @@
       const flightUHF = g.freq ? window.formatFreq(g.freq) : '—';
       const flightVHF = (g.channelsVHF && g.channelsVHF[0]) ? window.formatFreq(g.channelsVHF[0]) : '—';
 
+      const gid = safeId(g.name); /* préfixe stable pour cell IDs */
       /* ── Flight Group info ── */
       const shdFG = mkShdr('Flight Group');
       const rowFG = document.createElement('div'); rowFG.className = 'kb-grid5';
       rowFG.style.cssText = 'border:.5px solid #c0bdb5';
       /* Harmonisation police mono pour les cellules numériques (Radio - Tactical) */
-      const cellRadioTac = makeCell('Radio - Tactical', flightUHF);
+      const cellRadioTac = makeCell('Radio - Tactical', flightUHF, null, `${gid}-radio-tac`);
       cellRadioTac.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
       rowFG.append(
-        makeCell('Callsign', g.callsign),
-        makeCell('Aircraft', g.acType || '?'),
-        makeCell('Rôle / Task', g.task || ''),
-        makeCell('Mission', fd.nom || ''),
+        makeCell('Callsign', g.callsign, null, `${gid}-callsign`),
+        makeCell('Aircraft', g.acType || '?', null, `${gid}-aircraft`),
+        makeCell('Rôle / Task', g.task || '', null, `${gid}-task`),
+        makeCell('Mission', fd.nom || '', null, `${gid}-mission`),
         cellRadioTac
       );
 
       /* Times — harmonisation police mono pour T/O Time, Push Time, Tgt / TOT, Radio - Internal */
       const rowTimes = document.createElement('div'); rowTimes.className = 'kb-grid5';
       rowTimes.style.cssText = 'border:.5px solid #c0bdb5;border-top:none';
-      const cellPush = makeCell('Push Time', '');
+      const cellPush = makeCell('Push Time', '', null, `${gid}-push`);
       cellPush.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
-      const cellTot = makeCell('Tgt / TOT', g.totTime || '');
+      const cellTot = makeCell('Tgt / TOT', g.totTime || '', null, `${gid}-tot`);
       cellTot.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
-      const cellRadioInt = makeCell('Radio - Internal', flightVHF);
+      const cellRadioInt = makeCell('Radio - Internal', flightVHF, null, `${gid}-radio-int`);
       cellRadioInt.querySelector('.kb-cv').style.fontFamily = "'Share Tech Mono', monospace";
       rowTimes.append(
         (() => {
-          const c = makeCell('T/O Time', g.toTime_abs || g.toTime || '');
+          const c = makeCell('T/O Time', g.toTime_abs || g.toTime || '', null, `${gid}-to-time`);
           const cv = c.querySelector('.kb-cv');
           cv.style.fontFamily = "'Share Tech Mono', monospace";
           cv.dataset.toGroup = g.name;
@@ -2654,7 +2944,7 @@
         })(),
         cellPush,
         cellTot,
-        makeCell('', ''),
+        makeCell('', '', null, `${gid}-times-spare`),
         cellRadioInt
       );
 
@@ -2666,7 +2956,7 @@
       const shdCfg = mkShdr('Configurations & Loadout');
       const cfgRow = document.createElement('div'); cfgRow.className = 'kb-grid12';
       cfgRow.style.cssText = 'border:.5px solid #c0bdb5;border-top:none;gap:1px';
-      const loCellLarge = makeCell('Armement', lo.loadout);
+      const loCellLarge = makeCell('Armement', lo.loadout, null, `${gid}-loadout`);
       loCellLarge.style.gridColumn = 'span 9';
       loCellLarge.querySelector('.kb-cv').style.whiteSpace = 'normal';
       /* ── Fuel cell avec sélecteur d'unité ── */
@@ -2678,7 +2968,7 @@
         fuelUnitSel.appendChild(opt);
       });
       const fuelValEl = document.createElement('span');
-      fuelValEl.className = 'kb-cv'; fuelValEl.contentEditable = 'true';
+      fuelValEl.className = 'kb-cv'; fuelValEl.contentEditable = 'true'; fuelValEl.dataset.cellId = `${gid}-fuel`;
       fuelValEl.textContent = lo.fuel || '';
       const fuelLblEl = document.createElement('span');
       fuelLblEl.className = 'kb-cl';
@@ -2698,7 +2988,7 @@
         lo.fuel = String(converted);
         fuelValEl.textContent = lo.fuel;
       });
-      cfgRow.append(loCellLarge, fuelCell, makeCell('Joker', lo.joker), makeCell('Bingo', lo.bingo || ''));
+      cfgRow.append(loCellLarge, fuelCell, makeCell('Joker', lo.joker, null, `${gid}-joker`), makeCell('Bingo', lo.bingo || '', null, `${gid}-bingo`));
 
       /* Airbases */
       const shdAf = mkShdr('Airbases or Carrier (T/O - ALT - DIV)');
@@ -2711,7 +3001,8 @@
       objFree.style.flex = '1.5';
       objFree.contentEditable = 'true';
       objFree.dataset.placeholder = 'Notes tactiques, dessins, croquis...';
-      objFree.dataset.objFreeGroup = g.name;  /* pour mise à jour coalition */
+      objFree.dataset.objFreeGroup = g.name;
+      objFree.dataset.cellId = `obj-free-${safeId(g.name)}`;  /* pour mise à jour coalition */
       objFree.style.whiteSpace = 'pre-wrap';
       objFree.style.color = '#0d1e3e';
       objFree.style.fontSize = '17.5px';
@@ -2855,15 +3146,18 @@
         text-align:center;padding:1px;border-right:.5px solid #e0e0e0;
         display:flex;align-items:center;justify-content:center`;
 
+          const radioType = isUHF ? 'uhf' : 'vhf';
           const inp = document.createElement('span');
           inp.contentEditable = 'true';
           inp.style.cssText = 'display:block;width:100%;font-family:inherit;font-size:inherit;text-align:center;color:#0d1e3e;padding:0;outline:none;white-space:nowrap;overflow:hidden';
           inp.textContent = channels[presetIdx] != null ? channels[presetIdx] : '';
+          inp.dataset.cellId = `comm-${safeId(g.name)}-${radioType}-${presetNum}-freq`;
           tdF.appendChild(inp);
 
           /* ── Cellule Description (contenteditable) ── */
           const tdD = document.createElement('div');
           tdD.contentEditable = 'true';
+          tdD.dataset.cellId = `comm-${safeId(g.name)}-${radioType}-${presetNum}-desc`;
           tdD.style.cssText = `background:${bg};font-size:8px;padding:1px 2px;
         border-right:${borderRightDesc};min-height:13px;color:#333;
         display:flex;align-items:center;overflow:hidden`;
@@ -2880,7 +3174,7 @@
       return wrapper;
     }
 
-    function mkDatacardPage2(g, idx) {
+    function mkDatacardPage2(g, idx, onAdd) {
       const page = document.createElement('div'); page.className = 'kb-page';
 
       /* En-tête */
@@ -2941,6 +3235,9 @@
       mapBlock.dataset.placeholder = 'Zone libre : texte ou image.';
 
       const mapKey2 = safeId(g.name);
+      mapBlock.dataset.mapKey = mapKey2;
+      mapBlock.dataset.cellId = `map-${mapKey2}`;
+
       const mapImage = groupMapImages[mapKey2];
       const mapTxt = groupMapText[mapKey2] || '';
 
@@ -3006,7 +3303,20 @@
         }
       });
 
-      /* Clear : supprimer uniquement l'image */
+      /* Bouton + page supplémentaire (no-print, affiché dans le header) */
+      const btnAddPage = document.createElement('button');
+      btnAddPage.className = 'kb-img-btn no-print';
+      btnAddPage.type = 'button';
+      btnAddPage.textContent = '＋ Page';
+      btnAddPage.title = 'Ajouter une page de notes supplémentaire';
+      btnAddPage.onclick = onAdd || (() => {
+        if (!groupExtraPages[g.name]) groupExtraPages[g.name] = [];
+        groupExtraPages[g.name].push({ text: '', image: null });
+        renderPreview();
+      });
+      right.append(btnAddPage);
+
+      /* Clear carte : supprimer uniquement l'image */
       btnClearMap.onclick = () => {
         delete groupMapImages[mapKey2];
         const imgs = mapBlock.querySelectorAll('img');
@@ -3128,7 +3438,7 @@
             tbody.appendChild(makeWpRow(wp, i, g.name));
           } else {
             const tr = tbody.insertRow();
-            for (let j = 0; j < 10; j++) { const td = tr.insertCell(); td.contentEditable = 'true'; }
+            for (let j = 0; j < 10; j++) { const td = tr.insertCell(); td.contentEditable = 'true'; td.dataset.cellId = `wp-${safeId(g.name)}-empty${i}-col${j}`; }
           }
         }
         return tbl;
@@ -3201,13 +3511,13 @@
         { label: 'A/C n°', key: 'acNum' }
       ].forEach(row => {
         const tr = tbody.insertRow();
-        /* Labels de lignes : gris, capitales, même style que les labels Flight Group */
         const lbl = tr.insertCell();
         lbl.style.cssText = 'font-weight:700;font-size:14px;color:#666;text-transform:uppercase;letter-spacing:.04em';
         lbl.textContent = row.label;
+        const mg = 'mbr-' + safeId(g.name);
         for (let i = 0; i < 4; i++) {
           const td = tr.insertCell(); td.contentEditable = 'true';
-          /* Contenu : même taille et poids que les valeurs Flight Group */
+          td.dataset.cellId = `${mg}-${row.key}-${i}`;
           td.style.cssText = 'font-size:17.5px;font-weight:700;color:#0d1e3e';
           td.textContent = (g.members && g.members[i]) ? (g.members[i][row.key] || '') : '';
         }
@@ -3259,6 +3569,7 @@
         tdName.style.cssText = 'width:22%;text-align:left;padding-left:4px';
         const inp = document.createElement('input');
         inp.className = 'af-input';
+        inp.dataset.cellId = `af-${safeId(g.name)}-${safeId(label)}-name`;
         if (!isCarrier) inp.setAttribute('list', dlId);
         inp.value = afName;
         inp.style.cssText = 'width:100%;border:none;background:transparent;font-size:17.5px;font-weight:600;color:#111;font-family:"Barlow Condensed",sans-serif;text-align:left';
@@ -3267,21 +3578,22 @@
 
         /* Colonne RWY : pour un carrier on affiche "CALLSIGN" comme en-tête */
         /* Harmonisation police mono pour les valeurs numériques des airbases */
+        const afRowId = `af-${safeId(g.name)}-${safeId(label)}`;
         const tdUhf = document.createElement('td'); tdUhf.contentEditable = 'true';
         tdUhf.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
-        tdUhf.textContent = afUhf;
+        tdUhf.textContent = afUhf; tdUhf.dataset.cellId = `${afRowId}-uhf`;
         const tdVhf = document.createElement('td'); tdVhf.contentEditable = 'true';
         tdVhf.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
-        tdVhf.textContent = afVhf;
+        tdVhf.textContent = afVhf; tdVhf.dataset.cellId = `${afRowId}-vhf`;
         const tdRwy = document.createElement('td'); tdRwy.contentEditable = 'true';
         tdRwy.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
-        tdRwy.textContent = afRwy;
+        tdRwy.textContent = afRwy; tdRwy.dataset.cellId = `${afRowId}-rwy`;
         const tdIls = document.createElement('td'); tdIls.contentEditable = 'true';
         tdIls.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
-        tdIls.textContent = afIls;
+        tdIls.textContent = afIls; tdIls.dataset.cellId = `${afRowId}-ils`;
         const tdTcn = document.createElement('td'); tdTcn.contentEditable = 'true';
         tdTcn.style.cssText = 'text-align:center;font-family:"Share Tech Mono",monospace';
-        tdTcn.textContent = afTcn;
+        tdTcn.textContent = afTcn; tdTcn.dataset.cellId = `${afRowId}-tcn`;
 
         /* Fond légèrement bleuté pour la ligne carrier */
         if (isCarrier) tr.style.background = '#e8f0fa';
@@ -3338,11 +3650,13 @@
         });
 
         const tbody = tbl.createTBody();
+        const radioTypeLabel = k === 0 ? 'uhf1' : k === 1 ? 'uhf2' : k === 2 ? 'vhf1' : 'vhf2';
         const list = (channels || []).slice(0, 20).map(f => window.formatFreq(f));
         for (let row = 0; row < 10; row++) {
           const tr = tbody.insertRow();
           const tdN = tr.insertCell(); tdN.textContent = String(row + 1);
           const tdF = tr.insertCell(); tdF.contentEditable = 'true';
+          tdF.dataset.cellId = `comm4-${safeId(g.name)}-${radioTypeLabel}-${row + 1}-freq`;
           tdF.style.fontFamily = "'Share Tech Mono',monospace";
           tdF.textContent = list[row] || '';
         }
