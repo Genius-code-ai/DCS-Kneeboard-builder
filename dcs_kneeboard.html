@@ -1232,9 +1232,15 @@
   </style>
 
   <!-- Bibliothèques (chargées depuis CDN fiables) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+          integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+          integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+          integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 
 <body>
@@ -1658,6 +1664,18 @@
     }
 
     function handleImageFile(file) {
+      /* Validation type MIME + taille avant readAsDataURL.
+         SVG exclu volontairement (peut fetcher des ressources externes au rendu). */
+      const ALLOWED_MIME = /^image\/(png|jpeg|webp|gif)$/;
+      const MAX_SIZE = 10 * 1024 * 1024;
+      if (!file || !ALLOWED_MIME.test(file.type || '')) {
+        setStatus('Image refusée : type non supporté (png, jpeg, webp, gif uniquement)', 0);
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        setStatus(`Image refusée : taille ${(file.size / 1024 / 1024).toFixed(1)} Mo > 10 Mo`, 0);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result;
@@ -2055,7 +2073,12 @@
           /* Zones libres gérées via variables dédiées (briefingText/Image,
              groupMapImages/Text, briefExtraPages, groupExtraPages) — ne pas
              sauvegarder leur HTML pour éviter tout sink innerHTML en retour. */
+        } else if (el.classList.contains('kb-free')) {
+          /* Zones libres gérées via variables dédiées (briefingText/Image,
+             groupMapImages/Text, briefExtraPages, groupExtraPages) — ne pas
+             sauvegarder leur HTML pour éviter tout sink innerHTML en retour. */
         } else {
+          saved.set(key, el.textContent);
           saved.set(key, el.textContent);
         }
       });
@@ -3794,9 +3817,15 @@
       const cells = {};
       document.querySelectorAll('#kbpages [data-cell-id]').forEach(el => {
         const key = el.dataset.cellId;
-        cells[key] = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
-          ? el.value
-          : el.innerHTML;
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+          cells[key] = el.value;
+        } else if (el.classList.contains('kb-free')) {
+          /* Zones libres : persistées via briefingText/Image, groupMapImages/Text,
+             briefExtraPages, groupExtraPages. Ne pas dupliquer dans cells pour
+             éviter de reréinjecter du HTML à la restauration. */
+        } else {
+          cells[key] = el.textContent;
+        }
       });
 
       /* ── 2. Construire l'objet de sauvegarde ── */
@@ -3951,6 +3980,10 @@
         const text = await file.text();
         const save = JSON.parse(text);
 
+        try {
+          validateKbsave(save);
+        } catch (e) {
+          setStatus('Fichier .kbsave invalide ou corrompu : ' + e.message, 0);
         try {
           validateKbsave(save);
         } catch (e) {
