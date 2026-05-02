@@ -1,4 +1,4 @@
-# DCS Kneeboard Generator — v1.0.4
+# DCS Kneeboard Generator — v1.0.5
 
 Generateur de kneeboards (fiches de vol) pour **DCS World**. Application web 100% front-end, sans serveur : ouvrir le fichier HTML dans un navigateur suffit.
 
@@ -155,7 +155,20 @@ Chargees depuis CDN (aucune installation requise) :
 
 ---
 
+## Remerciements
+
+Ce logiciel a été crée initialement pour l'escadrille les Irréductibles - www.lesirreductibles.com - avec l'aide de ses membres.
+Equipe de Beta testeurs: IRRE_Haloraptor, IRRE_Ilios, IRRE_RollupTito, IRRE_YesNo-1010.
+Mes remerciements particuliers à:
+- IRRE_YesNo-1010 pour son aide sur certaines corrections de code, le paramétragre du repository et la mise en ligne.
+- IRRE_RollupTito pour son aide poussée dans la recherche des bugs et propositions d'améliorations
+
+---
+
 ## Historique des versions
+
+### v1.0.5
+- Ajout logo + lien les Irréductibles
 
 ### v1.0.4
 - **Correction de securite**
